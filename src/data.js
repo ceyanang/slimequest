@@ -1,0 +1,914 @@
+/* ================= elements ================= */
+const ELEM = {
+  fire:{name:'Fire',c:'#f94144',m:'r',s:'R'}, water:{name:'Water',c:'#4cc9f0',m:'b',s:'B'},
+  life:{name:'Life',c:'#90be6d',m:'e',s:'E'}, earth:{name:'Earth',c:'#c08a55',m:'n',s:'N'},
+  lightning:{name:'Lightning',c:'#f9c74f',m:'y',s:'Y'}, light:{name:'Light',c:'#fff1b8',m:'x',s:'X'},
+  dark:{name:'Dark',c:'#8a7fb0',m:'d',s:'D'}, psychic:{name:'Psychic',c:'#d17fe8',m:'p',s:'P'},
+  neutral:{name:'Normal',c:'#c9c1ee'}
+};
+const CYC = ['water','fire','life','earth','lightning']; // each beats the next, last beats first
+const SPC = ['light','dark','psychic'];
+function effMult(a, d) {
+  if (!a || a === 'neutral' || !d) return 1;
+  for (const c of [CYC, SPC]) {
+    const i = c.indexOf(a), j = c.indexOf(d);
+    if (i >= 0 && j >= 0) {
+      if ((i + 1) % c.length === j) return 1.5;
+      if ((j + 1) % c.length === i) return 0.67;
+      return 1;
+    }
+  }
+  return 1;
+}
+// Multi-element units multiply their multipliers (x1.5 and x0.67 cancel out to neutral; double weakness is x2.25).
+const effVs = (me, u) => { const v = [u.el, u.el2, u.el3].filter(Boolean).reduce((s, x) => s * effMult(me, x), 1); return Math.abs(v - 1) < 0.02 ? 1 : v; };
+
+/* ================= levels + stats =================
+   Every stat (except stamina) is base x mult(level). Level 100 = about 6x level 1.
+   Damage = pow x (OFF / DEF) x mult(attacker level) / 5, so fights stay the same length at any level
+   but a level gap really matters. */
+const LVL_MAX = 100;
+const mult = L => 1 + 0.05 * (L - 1);
+
+const CLASSES = {
+  fighter:{ name:'Fighter', hp:51, off:11, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
+  cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
+  mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
+  monk:   { name:'Monk',    hp:46, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
+  bulwark:{ name:'Bulwark', hp:78, off:10.8, pdef:15, sdef:12, spd:3.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
+  bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
+  ranger: { name:'Ranger',  hp:50, off:10, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
+  sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
+  rogue:  { name:'Rogue',   hp:48, off:11.9, pdef:8, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
+};
+/* ---- class passives: a starter picks one of its class's two, recruits roll one at random ---- */
+const PASSIVES = {
+  fighter:  [{ id:'standing', n:"I'm Still Standing", d:'The first time it would be knocked out each fight, it survives with 1 HP. Stacks with the Phoenix Plume.' },
+             { id:'brute', n:'Brute', d:'+25% OFF.' }],
+  cleric:   [{ id:'healer', n:'Healer', d:"Heals use the highest max HP on your team instead of the target's." },
+             { id:'guardian', n:'Guardian Angel', d:'At the end of every round, shields the ally with the lowest HP (by %) for 20% of their max HP.' }],
+  rogue:    [{ id:'opportunist', n:'Opportunist', d:'+50% damage against foes with a status ailment or lowered stats (burn, poison, stun, paralysis, blind, confusion, marked, stat drops).' },
+             { id:'killer', n:'Cold Hearted Killer', d:'Hits that leave a foe at 15% HP or less finish it. Against bosses, each damaging move adds a bonus hit worth 15% of its damage.' }],
+  mage:     [{ id:'armor', n:'Mage Armor', d:'Starts each fight with a shield worth 50% of max HP that lasts one turn.' },
+             { id:'power', n:'Unlimited Power', d:'Damaging moves lose their side effects but deal 50% more damage. Drawbacks like recoil stay.' }],
+  ranger:   [{ id:'trap', n:'Trap Master', d:'Status effect chances are doubled.' },
+             { id:'volley', n:'Volley Expert', d:'Single-target moves also hit the other foes for 20% of the damage (status chances can still land). Area moves deal 25% more.' }],
+  monk:     [{ id:'hands', n:'Quick Hands', d:'Multi-hit moves hit once more.' },
+             { id:'peace', n:'La Peace', d:'Resting also heals 20% of max HP and cures ailments.' }],
+  bulwark:  [{ id:'champion', n:'Champion', d:'Starts each fight taunting for 1 turn.' },
+             { id:'defender', n:'Elite Defender', d:'Your whole team starts each fight with +25% DEF and SpD for 3 rounds.' }],
+  bard:     [{ id:'tricky', n:'Too Tricky for Pain', d:'Its DEF is the average of its DEF and SpD.' },
+             { id:'swords', n:'College of Swords', d:'Attacks with its SpD instead of its OFF. OFF boosts it gets become random stat boosts.' }],
+  sorcerer: [{ id:'embody', n:'Embodiment', d:'Resisted attacks deal normal damage, and it takes 25% less damage from its own element.' },
+             { id:'spite', n:'Spite', d:'When hit, 20% of the damage is thrown back at a random foe.' }]
+};
+const passiveOf = u => { if (u && u.pas === 'blessing') u.pas = 'guardian';   // old saves
+  return u && u.pas && PASSIVES[u.cls] ? [...PASSIVES[u.cls], ...(PASSIVES[u.cls2] || [])].find(p => p.id === u.pas) || null : null; };
+const STARTERS = ['fire','water','life','lightning','earth'];
+// Rare elements: recruit-only, offered less often.
+const RARE_ELS = ['light','dark','psychic'];
+const ALL_ELS = [...STARTERS, ...RARE_ELS];
+const RARE_WEIGHT = 0.5;   // each rare element is half as likely as a starter element in recruit offers
+// Classes you can start as. Mage and Ranger are recruit-only for now.
+const STARTER_CLASSES = ['fighter','cleric','rogue','mage','ranger','monk','bulwark','bard','sorcerer'];
+const STAT_KEYS = ['hp','off','pdef','sdef','spd','sta'];
+// Star boosts: each point adds this much of a stat; a recruited copy gets only part of your starter's bonus.
+const STAR_STEP = 10, STAR_STAT_MAX = 10, STAR_PER_POINT = 0.05, RECRUIT_STAR = 0.5;
+const STAT_NAME = { hp:'HP', off:'OFF', pdef:'DEF', sdef:'SpD', spd:'SPE', sta:'STA' };
+const EL_STATS = {
+  fire:  { hp:-0.75, off:+2, pdef:+0, sdef:+0,  spd:+1, sta:0,  desc:'Hyper offense: big OFF, fast, low HP' },
+  water: { hp:+1, off:-0.5, pdef:+0, sdef:+0.5, spd:+0.75, sta:-1, desc:'Bulky speedster: lots of HP and speed, low OFF and STA' },
+  life:  { hp:+1, off:0,  pdef:+0, sdef:+0,  spd:0,  sta:0,  desc:'Well rounded. Sustains itself and spreads effects' },
+  lightning: { hp:+0.5, off:+1, pdef:+0, sdef:+0, spd:+1.75, sta:0,  desc:'Fast and tricky: paralyzes, hastes allies' },
+  earth: { hp:+1, off:+1, pdef:+1.5, sdef:-0.5, spd:-1.5, sta:-1, desc:'Tough, solid and strong, but sluggish' },
+  light:   { hp:+0.5, off:0,  pdef:+0, sdef:+0.75,  spd:-1, sta:-1, desc:'Strong protector: shields, heals, and attacks that mend allies' },
+  dark:    { hp:+0.5,  off:+1.5, pdef:+0, sdef:+0,  spd:+0.75, sta:-0.5, desc:'Ruthless offense: hits hard, blinds foes, veils allies' },
+  psychic: { hp:0,  off:0,  pdef:+0, sdef:+0.5,  spd:+1,  sta:+0.5, desc:'Fast controller: confusion and stamina drain, usually first to act' }
+};
+// Element steps: each step is +/-10% for HP, OFF, DEF and SPE, or +/-12 for stamina.
+const STEP_PCT = 0.1, STEP_STA = 12;
+function baseOf(el, cls) {
+  const C = CLASSES[cls], S = EL_STATS[el] || {}, o = { crit:C.crit };
+  STAT_KEYS.forEach(k => o[k] = k === 'sta' ? C.sta + (S.sta || 0) * STEP_STA : Math.round(C[k] * (1 + (S[k] || 0) * STEP_PCT) * 10) / 10);
+  return o;
+}
+const stepText = (k, v) => k === 'sta' ? `${v > 0 ? '+' : ''}${v * STEP_STA}` : `${v > 0 ? '+' : ''}${v * 10}%`;
+// Basic hits are free and recharge 20% of max stamina; Rest recharges 50%.
+const BASIC_COST = 0, BASIC_CHARGE = 0.2, STA_REGEN = 10, REST_PCT = 0.5, PARTY_MAX = 3, RECRUIT_CHOICES = 3;
+
+/* ================= moves =================
+   pow 0-100 (a few ultimates go past). s = stamina cost.
+   t = target: foe, foes (all), self, ally, allies (whole team), fallen (a KO'd ally). */
+const BASIC = {
+  fighter:{ n:'Slam',  el:'neutral', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
+  cleric: { n:'Smite', el:'light',   cat:'s', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // always Light, whatever the slime's element
+  rogue:  { n:'Stab',  el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE, critBonus:0.2 },
+  mage:   { n:'Bonk',  el:'neutral', pow:25, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // genuinely bad: mages cast spells
+  ranger: { n:'Arrow Shot', el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
+  bulwark:{ n:'Hammer Bonk', el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
+  sorcerer:{ n:'Elemental Jab', el:'self', cat:'s', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // hits with the slime's own element
+  bard:   { n:'Lute Smack',  el:'neutral', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
+  monk:   { n:'Palm Strike', el:'neutral', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE, mendAlly:0.15 }
+};
+
+// Learnset curve, squeezed so a full 8-world run (about Lv60) gets the whole kit.
+// Classes are the main kit; elements add a few buffs/debuffs on top. Combo levels 22 / 44 are reserved for later.
+// Attack type: physical (weapons, fists, arrows) or special (spells, holy/dark power, songs).
+// Most moves follow their class; support classes' DEF-lowering hits both defenses, attackers lower their own type.
+const CLS_CAT = { fighter:'p', rogue:'p', monk:'p', ranger:'p', bulwark:'p', mage:'s', cleric:'s', bard:'s', sorcerer:'s' };
+const SUPPORT_CLS = { cleric:1, bard:1 };
+const tagCat = (m, cls) => { if (!m.cat) m.cat = CLS_CAT[cls] || 'p'; if (m.expose || m.exposeCh) m.exp = SUPPORT_CLS[cls] ? 'b' : m.cat; return m; };
+const LEARN_LV = { el:[1, 18, 36], cls:[1, 5, 10, 17, 26, 38, 52], combo:[1, 22, 44] };
+// Classes that have their full combo set swap some generic element/class moves for extra combo moves.
+// drop: indexes of EL_MOVES / CLASS_MOVES they skip; combo: learn levels for each combo move, in array order.
+const CLASS_LEARN = {
+  fighter:{ dropEl:[1], dropCls:[1, 4], combo:[1, 22, 44, 8, 14, 32] },  // no Power Strike, Whirlwind or element support move
+  cleric: { dropEl:[1], dropCls:[1, 3], combo:[1, 22, 44, 8, 14, 32] },  // no Holy Bolt, Radiant Burst or element support move
+  rogue:  { dropEl:[1], dropCls:[1, 3], combo:[1, 22, 44, 8, 14, 32] },  // no Twin Slash, Poison Blade or element support move
+  mage:   { dropEl:[1], dropCls:[2, 5], combo:[1, 22, 44, 8, 14, 32] },  // no Elemental Blast, Meteor or element support move
+  ranger: { dropEl:[1], dropCls:[3, 6], combo:[1, 22, 44, 8, 14, 32] },  // no Volley, Rain of Arrows or element support move
+  bulwark:{ dropEl:[], dropCls:[3, 5], combo:[1, 22, 44, 8, 14, 32] },  // no Fortress or Last Stand
+  bard:   { dropEl:[], dropCls:[3, 5], combo:[1, 22, 44, 8, 14, 32] },   // no Ballad of Rest or Inspire
+  sorcerer:{ dropEl:[1], dropCls:[1, 4], combo:[1, 22, 44, 8, 14, 32] }, // no Surge, Embodiment or element support move
+  monk:   { dropEl:[1], dropCls:[2, 3], combo:[1, 22, 44, 8, 14, 32] }   // no Chi Strike, Pressure Point or element support move
+};
+const comboLv = cls => (CLASS_LEARN[cls] || LEARN_LV).combo;
+
+// Element moves: mostly support and effects.
+const EL_MOVES = {
+  fire: [   // aggression: burns, attack buffs, armor melting
+    { n:'Ember',        el:'fire', pow:60, s:20, t:'foe',    burn:0.6 },
+    { n:'Kindle',       el:'fire', pow:0,  s:20, t:'ally',   offUp:2 },
+    { n:'Scorch',       el:'fire', pow:0,  s:35, t:'foes',   burn:0.5, expose:1 }
+  ],
+  water: [  // protection: shields, weakening foes, healing
+    { n:'Bubble Shield',el:'water', pow:0, s:25, t:'ally',   shieldPct:0.42 },
+    { n:'Soak',         el:'water', pow:0, s:25, t:'foes',   weaken:1 },
+    { n:'Tide Pool',    el:'water', pow:0, s:35, t:'allies', healPct:0.24, cleanse:true }
+  ],
+  life: [   // sustain: drain, poison, regen
+    { n:'Leech Seed',     el:'life', pow:45, s:20, t:'foe',    poison:0.6, leech:0.5 },
+    { n:'Photosynthesis', el:'life', pow:0,  s:30, t:'self',   healPct:0.3, regen:[0.1,3] },
+    { n:'Spore Cloud',    el:'life', pow:0,  s:35, t:'foes',   poison:0.5, stun:0.1 }
+  ],
+  lightning: [ // tempo: paralysis, speed, crits
+    { n:'Static Shock',   el:'lightning', pow:40, s:20, t:'foe',  para:0.5 },
+    { n:'Overcharge',     el:'lightning', pow:0,  s:25, t:'ally', haste:2 },
+    { n:'Static Field',   el:'lightning', pow:0,  s:35, t:'foes', para:0.4, stun:0.1 }
+  ],
+  earth: [     // toughness: armor, cracking defenses, heavy hits
+    { n:'Rock Smash',     el:'earth', pow:55, s:25, t:'foe',  expose:1 },
+    { n:'Stone Skin',     el:'earth', pow:0,  s:25, t:'ally', armor:2, shieldPct:0.15 },
+    { n:'Earthquake',     el:'earth', pow:40, s:30, t:'foes', stun:0.15 }
+  ],
+  light: [     // protection with some bite: attacks mend allies
+    { n:'Holy Light',     el:'light', pow:50, s:25, t:'foe',    mendAlly:0.3 },
+    { n:'Sacred Shield',  el:'light', pow:0,  s:30, t:'ally',   shieldPct:0.27, armor:1 },
+    { n:'Dawn',           el:'light', pow:0,  s:45, t:'allies', healPct:0.24, offUp:1, cleanse:true }
+  ],
+  dark: [      // tricks: blind foes, veil allies
+    { n:'Shadow Bite',    el:'dark', pow:50, s:25, t:'foe',    blind:0.5 },
+    { n:'Dread',          el:'dark', pow:0,  s:30, t:'foes',   weaken:1, blind:0.3 },
+    { n:'Night Veil',     el:'dark', pow:0,  s:40, t:'allies', veil:1 }
+  ],
+  psychic: [   // mind games: confusion and stamina warfare
+    { n:'Mind Spike',     el:'psychic', pow:55, s:20, t:'foe',    staDrain:20, confuse:0.35 },
+    { n:'Psych Out',      el:'psychic', pow:0,  s:30, t:'foes',   confuse:0.55 },
+    { n:'Insight',        el:'psychic', pow:0,  s:35, t:'allies', staGain:30, offUp:1 }
+  ]
+};
+// Class moves: the main kit. Attacks marked el:'self' hit with the slime's own element.
+const CLASS_MOVES = {
+  fighter: [   // all-rounder: hits everything, sturdy, rallies the team
+    { n:'Cleave',            el:'self', pow:40,  s:25, t:'foes' },
+    { n:'Power Strike',      el:'self', pow:65,  s:25, t:'foe' },
+    { n:'Battle Cry',        el:'neutral', pow:0, s:30, t:'allies', offUp:1, selfTaunt:2 },
+    { n:'Shield Bash',       el:'self', pow:55,  s:25, t:'foe',  stun:0.3, selfTaunt:1 },
+    { n:'Whirlwind',         el:'self', pow:60,  s:45, t:'foes' },
+    { n:'Second Wind',       el:'neutral', pow:0, s:35, t:'self', healPct:0.3, shieldPct:0.22, armor:1 },
+    { n:"Champion's Strike", el:'self', pow:110, s:55, t:'foe',  critBonus:0.3 }
+  ],
+  cleric: [    // support with real damage
+    { n:'Mend',           el:'neutral', pow:0, s:25, t:'ally',   healPct:0.56 },
+    { n:'Holy Bolt',      el:'self', pow:75,   s:25, t:'foe' },
+    { n:'Bless',          el:'neutral', pow:0, s:25, t:'ally',   offUp:1, shieldPct:0.3 },
+    { n:'Radiant Burst',  el:'self', pow:50,   s:35, t:'foes' },
+    { n:'Resurrection',   el:'neutral', pow:0, s:70, t:'fallen', revive:0.4 },   // Lv26: every Cleric gets a revive by mid-run
+    { n:'Judgment',       el:'self', pow:85,   s:45, t:'foe',    expose:1 },
+    { n:'Sanctuary',      el:'neutral', pow:0, s:55, t:'allies', healPct:0.48, shieldPct:0.15, cleanse:true }
+  ],
+  rogue: [     // fast, massive single-target damage
+    { n:'Assassinate',     el:'self', pow:85,  s:35, t:'foe',  critBonus:0.1 },
+    { n:'Twin Slash',      el:'self', pow:35,  s:20, t:'foe',  hits:2, exposeCh:0.25 },
+    { n:'Expose Weakness', el:'self', pow:30,  s:12, t:'foe',  expose:1 },
+    { n:'Poison Blade',    el:'self', pow:50,  s:30, t:'foe',  poison:0.8 },
+    { n:'Fan of Knives',   el:'self', pow:50,  s:45, t:'foes', critBonus:0.2 },
+    { n:'Shadowstep',      el:'neutral', pow:0, s:30, t:'self', shieldPct:0.3, offUp:1 },
+    { n:'Death Mark',      el:'self', pow:110, s:60, t:'foe',  critBonus:0.3, execute:true }
+  ],
+  mage: [      // glass cannon: huge elemental spells, needs protecting
+    { n:'Arcane Bolt',     el:'self', pow:70,  s:30, t:'foe' },
+    { n:'Mana Shield',     el:'neutral', pow:0, s:25, t:'self', shieldPct:0.45 },
+    { n:'Elemental Blast', el:'self', pow:50,  s:35, t:'foes' },
+    { n:'Arcane Focus',    el:'neutral', pow:0, s:25, t:'self', offUp:2 },
+    { n:'Hex',             el:'neutral', pow:0, s:30, t:'foe',  weaken:1, expose:1 },
+    { n:'Meteor',          el:'self', pow:70,  s:65, t:'foes', stun:0.15 },
+    { n:'Cataclysm',       el:'self', pow:125, s:75, t:'foe' }
+  ],
+  bulwark: [   // the tank: protects allies, soaks hits, slow but sturdy
+    { n:'Shield Up',          el:'neutral', pow:0, s:20, t:'self', taunt:2 },
+    { n:'Hammer Down',        el:'self', pow:60,  s:30, t:'foe',  stun:0.25 },
+    { n:'Guard',              el:'neutral', pow:0, s:25, t:'ally', guard:3, armor:1 },
+    { n:'Fortress',           el:'neutral', pow:0, s:30, t:'self', armor:2 },
+    { n:'Shield Slam',        el:'self', pow:55,  s:30, t:'foe',  weaken:1 },
+    { n:'Last Stand',         el:'neutral', pow:0, s:40, t:'self', healPct:0.3, armor:1 },
+    { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.3 }
+  ],
+  sorcerer: [  // pure elemental power: slow, sturdy, blasts the whole field
+    { n:'Elemental Wave', el:'self', pow:45,  s:30, t:'foes' },
+    { n:'Surge',          el:'self', pow:70,  s:30, t:'foe' },
+    { n:'Attune',         el:'neutral', pow:0, s:25, t:'self', offUp:1, shieldPct:0.2 },
+    { n:'Shockwave',      el:'self', pow:55,  s:40, t:'foes', stun:0.15 },
+    { n:'Embodiment',     el:'neutral', pow:0, s:35, t:'self', healPct:0.25, shieldPct:0.15 },
+    { n:'Eruption',       el:'self', pow:80,  s:60, t:'foes' },
+    { n:'Apotheosis',     el:'self', pow:100, s:80, t:'foes', expose:1 }
+  ],
+  bard: [      // songs: team buffs and foe debuffs, weak hits
+    { n:'Off-Key Shriek',     el:'self', pow:35,  s:35, t:'foes', weaken:1 },
+    { n:'Rally Song',         el:'neutral', pow:0, s:30, t:'allies', offUp:1 },
+    { n:'Lullaby',            el:'neutral', pow:0, s:25, t:'foe',  stun:0.5 },
+    { n:'Ballad of Rest',     el:'neutral', pow:0, s:35, t:'allies', regen:[0.1,3] },
+    { n:'Tempo',              el:'neutral', pow:0, s:45, t:'allies', haste:1 },
+    { n:'Inspire',            el:'neutral', pow:0, s:30, t:'allies', staGain:25 },
+    { n:'Grand Finale',       el:'self', pow:65,  s:60, t:'foes', teamHeal:0.15 }
+  ],
+  monk: [      // cleric + rogue: fast multi-hits, self-care, strikes that heal allies
+    { n:'Flurry of Blows', el:'self', pow:25,  s:25, t:'foe',  hits:3, weakenCh:0.2 },
+    { n:'Inner Peace',     el:'neutral', pow:0, s:25, t:'self', healPct:0.3, cleanse:true },
+    { n:'Chi Strike',      el:'self', pow:60,  s:35, t:'foe',  mendAlly:0.4 },
+    { n:'Pressure Point',  el:'self', pow:35,  s:20, t:'foe',  stun:0.3, critBonus:0.2 },
+    { n:'Meditate',        el:'neutral', pow:0, s:0, t:'self', staGain:30, offUp:1 },
+    { n:'Harmony',         el:'neutral', pow:0, s:45, t:'allies', healPct:0.24, haste:1 },
+    { n:'Hundred Fists',   el:'self', pow:22,  s:65, t:'foe',  hits:6, teamLeech:0.2 }
+  ],
+  ranger: [    // tricky: a bit of everything, support and debuffs
+    { n:'Aimed Shot',      el:'self', pow:65,  s:25, t:'foe',  critBonus:0.15 },
+    { n:'Snare',           el:'neutral', pow:0, s:25, t:'foe',  para:0.9 },
+    { n:'Field Medic',     el:'neutral', pow:0, s:25, t:'ally', healPct:0.38 },
+    { n:'Volley',          el:'self', pow:40,  s:25, t:'foes' },
+    { n:"Hunter's Mark",   el:'self', pow:35,  s:15, t:'foe',  expose:1 },
+    { n:'Camouflage',      el:'neutral', pow:0, s:35, t:'ally', shieldPct:0.3, haste:2 },
+    { n:'Rain of Arrows',  el:'self', pow:60,  s:55, t:'foes', para:0.25 }
+  ]
+};
+// Cut for now (could come back as combo moves or new classes):
+// Fire: Blaze Aura · Water: Aqua Veil · Life: Overgrowth
+// Fighter: Guard Up, Crushing Blow · Cleric: Purify, Barrier · Rogue: Flurry, Eviscerate
+// Combo moves: only the level 1 move exists so far (levels 22 / 44 are reserved).
+const COMBO_MOVES = {
+  fire_fighter: [{ n:'Blazing Slam', el:'fire', pow:65, s:35, t:'foe', selfOffUp:1, recoil:0.1 },
+    { n:'Volcanic Blitz',   el:'fire',  pow:70,  s:45, t:'foe', splash:45 }, { n:'Inferno Brand', el:'fire', pow:120, s:65, t:'foe', burn:1, blind:1, recoil:0.15 },
+    { n:'Searing Edge',  el:'fire', pow:65, s:30, t:'foe',  expose:1 }, { n:'Heat Wave', el:'fire', pow:45, s:45, t:'foes', burn:0.4 },
+    { n:'Molten Armor', el:'fire', pow:0, s:35, t:'self', armor:1, offUp:1 }],
+  fire_cleric:  [{ n:'Phoenix Hymn',  el:'fire',  pow:0,  s:45, t:'allies', offUp:1, healPct:0.16 },
+    { n:'Purging Flame', el:'fire', pow:75, s:40, t:'foe', burn:0.5, dispel:true },
+    { n:'Holy Inferno', el:'fire', pow:80, s:65, t:'foes', burn:0.6, teamHeal:0.15 },
+    { n:'Cinder Smite', el:'fire', pow:65, s:25, t:'foe', selfOffUp:1 },
+    { n:'Flame Sermon', el:'fire', pow:40, s:30, t:'foes', teamSta:0.15 },
+    { n:"Zealot's Fury", el:'fire', pow:0, s:30, t:'self', offUp:2, haste:1 }],
+  fire_rogue:   [{ n:'Flame Flurry',  el:'fire',  pow:30, s:45, t:'foe',    hits:3, burn:0.3 },
+    { n:'Blazing Fan', el:'fire', pow:40, s:45, t:'foes', burn:0.4 },
+    { n:'Immolate', el:'fire', pow:130, s:65, t:'foe', execute:true, recoil:0.1 },
+    { n:'Ember Dagger', el:'fire', pow:50, s:20, t:'foe', critBonus:0.15, selfHaste:1 },
+    { n:'Smoke Bomb', el:'fire', pow:0, s:25, t:'foes', blind:0.6 },
+    { n:'Hot Pursuit', el:'fire', pow:0, s:30, t:'self', offUp:1, haste:2 }],
+  water_fighter: [{ n:'Tidal Wave',    el:'water', pow:35, s:45, t:'foes',   weaken:1 },
+    { n:'Washing Strike', el:'water', pow:60,  s:40, t:'foe', dispel:true, cleanseTeam:true }, { n:'Whale Strike', el:'water', pow:165, s:55, t:'foe', selfStun:true },
+    { n:'Riptide Slash', el:'water', pow:60, s:30, t:'foe',  weaken:1 }, { n:'Breakwater', el:'water', pow:0, s:35, t:'self', taunt:2, shieldPct:0.3 },
+    { n:'Maelstrom', el:'water', pow:60, s:55, t:'foes', foeStaDrain:0.15 }],
+  water_cleric: [{ n:'Healing Rain',  el:'water', pow:0,  s:45, t:'allies', healPct:0.19, regen:[0.1,3] },
+    { n:'Drench', el:'water', pow:35, s:25, t:'foes', weaken:1 },
+    { n:'Great Flood', el:'water', pow:60, s:60, t:'foes', teamHeal:0.22, cleanseTeam:true },
+    { n:'Purify', el:'water', pow:0, s:25, t:'ally', healPct:0.25, cleanse:true },
+    { n:'Tidal Ward', el:'water', pow:0, s:30, t:'allies', shieldPct:0.12 },
+    { n:'Spring Water', el:'water', pow:0, s:40, t:'allies', staGain:25, cleanse:true }],
+  water_rogue:  [{ n:'Undertow',      el:'water', pow:60, s:45, t:'foe',    stun:0.35 },
+    { n:'Whirlpool Slash', el:'water', pow:40, s:40, t:'foes', weaken:1 },
+    { n:'Abyssal Strike', el:'water', pow:140, s:65, t:'foe', weaken:2 },
+    { n:'Riptide Stab', el:'water', pow:45, s:15, t:'foe', selfHaste:1 },
+    { n:'Slip Away', el:'water', pow:0, s:25, t:'self', veil:1, shieldPct:0.22 },
+    { n:'Flash Flood', el:'water', pow:75, s:45, t:'foe', staDrain:25 }],
+  life_fighter: [{ n:'Bramble Bash', el:'life', pow:55, s:40, t:'foe', leech:0.35 },
+    { n:'Sap Strike',      el:'life',  pow:55,  s:40, t:'foe', poison:1, teamLeech:0.25 }, { n:'Yggdrasil', el:'life', pow:0, s:55, t:'self', shieldPct:1, taunt:2, selfStun:true },
+    { n:'Thorn Lash', el:'life', pow:55, s:25, t:'foe', expose:1 }, { n:'Overgrowth', el:'life', pow:0, s:35, t:'self', regen:[0.1,3], armor:1 },
+    { n:'Briar Sweep', el:'life', pow:55, s:50, t:'foes', poison:0.5, leech:0.2 }],
+  life_cleric:  [{ n:'Bloom',         el:'life',  pow:0,  s:45, t:'allies', regen:[0.1,3], cleanse:true },
+    { n:'Verdant Chorus', el:'life', pow:0, s:45, t:'allies', staGain:25, offUp:1 },
+    { n:'World Tree', el:'life', pow:0, s:70, t:'allies', healPct:0.6, armor:1 },
+    { n:'Herbal Remedy', el:'life', pow:0, s:20, t:'ally', cleanse:true, staGain:20 },
+    { n:'Seed of Life', el:'life', pow:0, s:30, t:'ally', regen:[0.1,3] },
+    { n:'Lifebloom Strike', el:'life', pow:55, s:30, t:'foe', teamLeech:0.4 }],
+  life_rogue:   [{ n:'Toxic Spores', el:'life', pow:30, s:45, t:'foes', poison:0.7 },
+    { n:'Nettle Flurry', el:'life', pow:30, s:40, t:'foe', hits:3, exposeCh:0.25 },
+    { n:'Deathbloom', el:'life', pow:70, s:60, t:'foes', leech:0.3, slow:1 },
+    { n:'Venom Fang', el:'life', pow:50, s:20, t:'foe', critBonus:0.2, slow:1 },
+    { n:'Crippling Toxin', el:'life', pow:0, s:25, t:'foe', poison:1, weaken:1 },
+    { n:'Lifesteal Dance', el:'life', pow:70, s:40, t:'foe', teamLeech:0.3 }],
+  lightning_fighter: [{ n:'Thunder Clap', el:'lightning', pow:40, s:45, t:'foes', slow:1, para:0.2 },
+    { n:'Overdrive',   el:'lightning', pow:60, s:40, t:'foe', selfOffUp:1, selfHaste:true }, { n:'Thunderous Charge', el:'lightning', pow:55, s:50, t:'foes', teamSta:0.15, foeStaDrain:0.15 },
+    { n:'Spark Jab', el:'lightning', pow:45, s:15, t:'foe', para:0.3 }, { n:'Battle Surge', el:'lightning', pow:0, s:35, t:'allies', haste:1 },
+    { n:'Lightning Dash', el:'lightning', pow:80, s:40, t:'foe', pierce:true, selfHaste:1 }],
+  lightning_cleric: [{ n:'Energize',     el:'lightning', pow:0,  s:45, t:'allies', haste:2, healPct:0.16 },
+    { n:'Thunder Sermon', el:'lightning', pow:45, s:40, t:'foes', blind:0.3, para:0.2 },
+    { n:'Divine Bolt', el:'lightning', pow:90, s:55, t:'foe', para:1 },
+    { n:'Jolt', el:'lightning', pow:40, s:20, t:'foe', stun:0.25 },
+    { n:'Recharge Hymn', el:'lightning', pow:0, s:25, t:'allies', staGain:25 },
+    { n:'Overload', el:'lightning', pow:0, s:35, t:'ally', haste:2, staGain:30 }],
+  lightning_rogue:  [{ n:'Volt Strike', el:'lightning', pow:65, s:45, t:'foe', para:0.5, selfHaste:1 },
+    { n:'Thunderstep', el:'lightning', pow:35, s:30, t:'foe', hits:2, slowCh:0.3 },
+    { n:'Lightning Execution', el:'lightning', pow:125, s:60, t:'foe', critBonus:0.3, stun:0.3 },
+    { n:'Quickstrike', el:'lightning', pow:40, s:15, t:'foe', critBonus:0.3, staDrain:15 },
+    { n:'Flicker', el:'lightning', pow:0, s:25, t:'self', haste:3 },
+    { n:'Arc Fan', el:'lightning', pow:45, s:40, t:'foes', slow:1, para:0.25 }],
+  earth_fighter: [{ n:'Seismic Slam', el:'earth', pow:70, s:45, t:'foe', splash:25 },
+    { n:'Bedrock Bash', el:'earth', pow:60, s:40, t:'foe', selfArmor:1, weaken:1 }, { n:'Tectonic Rupture', el:'earth', pow:60, s:60, t:'foes', stun:0.3, expose:1 },
+    { n:'Stone Fist', el:'earth', pow:55, s:25, t:'foe', expose:1 }, { n:'Stand Firm', el:'earth', pow:0, s:30, t:'self', taunt:2, armor:1 },
+    { n:'Landslide', el:'earth', pow:50, s:45, t:'foes', slow:1 }],
+  earth_cleric:     [{ n:'Fortify',      el:'earth',     pow:0,  s:45, t:'allies', armor:1, shieldPct:0.18 },
+    { n:'Quake Smite', el:'earth', pow:50, s:40, t:'foes', slow:1 },
+    { n:'Bastion', el:'earth', pow:0, s:60, t:'allies', regen:[0.1,3], veil:1 },
+    { n:'Stone Ward', el:'earth', pow:0, s:25, t:'self', taunt:2, veil:1 },
+    { n:'Rampart', el:'earth', pow:0, s:25, t:'ally', armor:2 },
+    { n:'Mountain Stance', el:'earth', pow:0, s:45, t:'self', regen:[0.1,3], cleanse:true }],
+  earth_rogue:      [{ n:'Boulder Drop', el:'earth', pow:75, s:45, t:'foe', splash:30 },
+    { n:'Crushing Blow', el:'earth', pow:90, s:45, t:'foe', pierce:true },
+    { n:'Avalanche Strike', el:'earth', pow:140, s:70, t:'foe', stun:0.4 },
+    { n:'Rock Shiv', el:'earth', pow:50, s:20, t:'foe', slow:1 },
+    { n:'Sandblast', el:'earth', pow:30, s:20, t:'foe', blind:1 },
+    { n:'Burrow', el:'earth', pow:0, s:35, t:'self', armor:2, veil:1 }],
+  fire_mage:        [{ n:'Fireball', el:'fire', pow:45, s:45, t:'foes', burn:0.3 },
+    { n:'Flame Pillar', el:'fire', pow:110, s:55, t:'foe', critBonus:0.2 },
+    { n:'Supernova', el:'fire', pow:110, s:80, t:'foes', expose:1, selfStun:true },
+    { n:'Heat Ray', el:'fire', pow:85, s:40, t:'foe', dispel:true },
+    { n:'Combustion', el:'fire', pow:0, s:25, t:'foe', burn:1, expose:1 },
+    { n:'Pyroclasm', el:'fire', pow:80, s:65, t:'foes', blind:0.3, recoil:0.1 }],
+  water_mage:       [{ n:'Torrent',         el:'water',     pow:45, s:45, t:'foes',   weaken:1 },
+    { n:'Tsunami', el:'water', pow:75, s:60, t:'foes', slow:1 },
+    { n:'Deluge', el:'water', pow:90, s:75, t:'foes', stun:0.25, selfStun:true },
+    { n:'Aqua Jet', el:'water', pow:60, s:25, t:'foe', slow:1 },
+    { n:'Water Barrier', el:'water', pow:0, s:35, t:'allies', shieldPct:0.15 },
+    { n:'Pressure Jet', el:'water', pow:100, s:50, t:'foe', pierce:true }],
+  life_mage:        [{ n:'Thorn Storm', el:'life', pow:40, s:45, t:'foes', poison:0.75 },
+    { n:'Bramble Storm', el:'life', pow:55, s:50, t:'foes', slow:1 },
+    { n:"Gaia's Wrath", el:'life', pow:80, s:80, t:'foes', teamHeal:0.22 },
+    { n:'Thorn Bolt', el:'life', pow:55, s:25, t:'foe', teamLeech:0.2 },
+    { n:'Regrowth', el:'life', pow:0, s:30, t:'self', regen:[0.1,3], shieldPct:0.15 },
+    { n:'Life Drain', el:'life', pow:90, s:45, t:'foe', teamHeal:0.15 }],
+  lightning_mage:   [{ n:'Chain Lightning', el:'lightning', pow:45, s:45, t:'foes', para:0.35 },
+    { n:'Thunderstorm', el:'lightning', pow:45, s:40, t:'foes', blind:0.4 },
+    { n:'Storm Lock', el:'lightning', pow:60, s:70, t:'foes', stun:0.5, slow:1 },
+    { n:'Shock Net', el:'lightning', pow:0, s:20, t:'foe', para:1, slow:1 },
+    { n:'Static Prison', el:'lightning', pow:0, s:30, t:'foe', stun:0.6 },
+    { n:'EMP', el:'lightning', pow:0, s:45, t:'foes', staDrain:30, weaken:1 }],
+  earth_mage:       [{ n:'Meteor Strike', el:'earth', pow:90, s:55, t:'foe', splash:30 },
+    { n:'Tremor', el:'earth', pow:45, s:45, t:'foes', slow:1 },
+    { n:'Earthshatter', el:'earth', pow:90, s:75, t:'foes', stun:0.4, expose:1 },
+    { n:'Quicksand', el:'earth', pow:0, s:20, t:'foe', slow:2 },
+    { n:'Petrify', el:'earth', pow:0, s:35, t:'foe', stun:0.7 },
+    { n:'Stone Prison', el:'earth', pow:0, s:40, t:'foe', dispel:true, weaken:1 }],
+  fire_ranger:      [{ n:'Flaming Arrows', el:'fire', pow:35, s:45, t:'foes', burn:0.3 },
+    { n:'Incendiary Trap', el:'fire', pow:30, s:35, t:'foes', slow:1, expose:1 },
+    { n:'Phoenix Arrow', el:'fire', pow:120, s:60, t:'foe', burn:1, teamHeal:0.15 },
+    { n:'Fire Arrow', el:'fire', pow:55, s:20, t:'foe', dispel:true },
+    { n:'Signal Flare', el:'fire', pow:0, s:30, t:'allies', offUp:1 },
+    { n:'Blazing Volley', el:'fire', pow:55, s:50, t:'foes', critBonus:0.2 }],
+  water_ranger:     [{ n:'Healing Mist',    el:'water',     pow:0,  s:45, t:'allies', healPct:0.19, regen:[0.1,3], cleanse:true },
+    { n:'Net Shot', el:'water', pow:30, s:25, t:'foe', stun:0.5 },
+    { n:'Hydro Barrage', el:'water', pow:70, s:60, t:'foes', weaken:1 },
+    { n:'Water Arrow', el:'water', pow:50, s:20, t:'foe', weaken:1 },
+    { n:'Tidal Tonic', el:'water', pow:0, s:25, t:'ally', healPct:0.19, regen:[0.1,3], cleanse:true },
+    { n:'Rain Dance', el:'water', pow:0, s:45, t:'allies', staGain:20, shieldPct:0.12 }],
+  life_ranger:      [{ n:'Venom Arrow', el:'life', pow:50, s:45, t:'foe', poison:1, teamLeech:0.2 },
+    { n:'Thorn Volley', el:'life', pow:40, s:40, t:'foes', poison:0.5 },
+    { n:'Hydra Arrow', el:'life', pow:40, s:60, t:'foe', hits:3, slowCh:0.3, critBonus:0.1 },
+    { n:'Poison Dart', el:'life', pow:35, s:10, t:'foe', weaken:1 },
+    { n:'Herbal Kit', el:'life', pow:0, s:30, t:'ally', healPct:0.25, regen:[0.1,3] },
+    { n:"Nature's Gift", el:'life', pow:0, s:45, t:'allies', regen:[0.1,3], cleanse:true }],
+  lightning_ranger: [{ n:'Thunder Arrow', el:'lightning', pow:55, s:45, t:'foe', para:0.5, selfHaste:1 },
+    { n:'Storm Volley', el:'lightning', pow:45, s:45, t:'foes', para:0.3 },
+    { n:'Thunderbolt Arrow', el:'lightning', pow:130, s:60, t:'foe', pierce:true },
+    { n:'Shock Trap', el:'lightning', pow:0, s:20, t:'foe', stun:0.5 },
+    { n:'Tailwind', el:'lightning', pow:0, s:35, t:'allies', haste:1 },
+    { n:'Overcharge Shot', el:'lightning', pow:90, s:45, t:'foe', critBonus:0.2, staDrain:20 }],
+  earth_ranger:     [{ n:'Boulder Trap',    el:'earth',     pow:35, s:45, t:'foes',   expose:1 },
+    { n:'Earthen Wall', el:'earth', pow:0, s:45, t:'allies', armor:1, shieldPct:0.15 },
+    { n:'Meteor Arrow', el:'earth', pow:120, s:65, t:'foe', splash:40 },
+    { n:'Stone Arrow', el:'earth', pow:60, s:25, t:'foe', slow:1 },
+    { n:'Pitfall', el:'earth', pow:0, s:25, t:'foe', stun:0.6 },
+    { n:'Rockslide Volley', el:'earth', pow:55, s:50, t:'foes', slow:1 }],
+  light_fighter: [{ n:'Holy Strike', el:'light', pow:65, s:45, t:'foe', blind:0.4 },
+    { n:'Radiant Guard',   el:'light', pow:55,  s:40, t:'foe', teamShield:0.15 }, { n:'Aegis of Dawn', el:'light', pow:90, s:60, t:'foe', teamHeal:0.3, cleanseTeam:true },
+    { n:'Dawn Strike', el:'light', pow:55, s:30, t:'foe',  leech:0.3 }, { n:'Hallowed Ground', el:'light', pow:0, s:40, t:'allies', shieldPct:0.18 },
+    { n:'Radiant Sweep', el:'light', pow:60, s:55, t:'foes', teamHeal:0.12 }],
+  light_cleric:     [{ n:'Divine Grace', el:'light', pow:0, s:45, t:'allies', shieldPct:0.22 },
+    { n:'Blessed Light', el:'light', pow:0, s:45, t:'allies', offUp:1, armor:1 },
+    { n:'Miracle', el:'light', pow:0, s:80, t:'allies', healPct:0.6, haste:1 },
+    { n:'Radiant Mend', el:'light', pow:0, s:25, t:'ally', healPct:0.31, shieldPct:0.15, cleanse:true },
+    { n:'Halo', el:'light', pow:0, s:35, t:'allies', veil:1 },
+    { n:'Holy Ward', el:'light', pow:0, s:45, t:'allies', regen:[0.1,3], staGain:15 }],
+  light_rogue:      [{ n:'Sunblade', el:'light', pow:70, s:45, t:'foe', teamShield:0.1 },
+    { n:'Radiant Flurry', el:'light', pow:30, s:40, t:'foe', hits:3, exposeCh:0.2 },
+    { n:'Judgment Blade', el:'light', pow:120, s:60, t:'foe', critBonus:0.3, teamHeal:0.15 },
+    { n:'Dazzle', el:'light', pow:40, s:20, t:'foe', blind:0.5, critBonus:0.2 },
+    { n:'Guardian Step', el:'light', pow:0, s:25, t:'ally', veil:1, haste:1 },
+    { n:'Blessed Blades', el:'light', pow:0, s:45, t:'allies', haste:1, shieldPct:0.1 }],
+  light_mage:       [{ n:'Holy Nova',       el:'light',   pow:45, s:45, t:'foes',   mendAlly:0.3 },
+    { n:'Sunbeam', el:'light', pow:110, s:55, t:'foe', critBonus:0.2 },
+    { n:'Judgment Ray', el:'light', pow:100, s:80, t:'foes', teamHeal:0.22 },
+    { n:'Light Lance', el:'light', pow:80, s:40, t:'foe', blind:0.3 },
+    { n:'Prism Shield', el:'light', pow:0, s:40, t:'allies', shieldPct:0.18 },
+    { n:'Radiance', el:'light', pow:0, s:50, t:'allies', healPct:0.32, offUp:1, armor:1 }],
+  light_ranger:     [{ n:'Beacon',          el:'light',   pow:0,  s:45, t:'allies', offUp:1, armor:1 },
+    { n:'Starfall', el:'light', pow:50, s:45, t:'foes', teamHeal:0.1 },
+    { n:'Solar Arrow', el:'light', pow:130, s:60, t:'foe', teamHeal:0.22 },
+    { n:'Glint Arrow', el:'light', pow:50, s:20, t:'foe', blind:0.5 },
+    { n:'Healing Arrow', el:'light', pow:0, s:30, t:'ally', healPct:0.31, cleanse:true },
+    { n:'Guardian Light', el:'light', pow:0, s:55, t:'allies', shieldPct:0.22, veil:1 }],
+  dark_fighter: [{ n:'Dark Cleave',     el:'dark',    pow:40, s:35, t:'foes',   blind:0.35 },
+    { n:'Shadow Feint',     el:'dark',  pow:50,  s:40, t:'foe', blind:1, selfVeil:true }, { n:'Eclipse', el:'dark', pow:70, s:60, t:'foes', expose:1, leech:0.2 },
+    { n:'Gloom Cut', el:'dark', pow:60, s:30, t:'foe',  leech:0.25 }, { n:'Terrorize', el:'dark', pow:0, s:35, t:'foes', weaken:1 },
+    { n:'Nightfall', el:'dark', pow:0, s:35, t:'self', veil:1, armor:1 }],
+  dark_cleric:      [{ n:'Shadow Pact',     el:'dark',    pow:0,  s:45, t:'allies', veil:1, offUp:1 },
+    { n:'Soul Drain', el:'dark', pow:70, s:40, t:'foe', teamLeech:0.3 },
+    { n:'Final Rites', el:'dark', pow:130, s:65, t:'foe', execute:true, leech:0.3 },
+    { n:'Hex Bolt', el:'dark', pow:55, s:25, t:'foe', weaken:1 },
+    { n:'Curse', el:'dark', pow:0, s:25, t:'foe', blind:1, slow:1 },
+    { n:'Blasphemy', el:'dark', pow:55, s:45, t:'foes', blind:0.4, expose:1 }],
+  dark_rogue:       [{ n:'Shadow Strike', el:'dark', pow:70, s:40, t:'foe', steal:true },
+    { n:'Bleed Out', el:'dark', pow:60, s:35, t:'foe', poison:1 },
+    { n:"Assassin's End", el:'dark', pow:120, s:60, t:'foe', leech:0.4, critBonus:0.2 },
+    { n:'Backstab', el:'dark', pow:55, s:20, t:'foe', blind:0.5 },
+    { n:'Vanish', el:'dark', pow:0, s:25, t:'self', veil:1, offUp:1 },
+    { n:'Night Flurry', el:'dark', pow:35, s:45, t:'foe', hits:3, weakenCh:0.25 }],
+  dark_mage:        [{ n:'Void Bolt', el:'dark', pow:80, s:45, t:'foe', dispel:true },
+    { n:'Soul Siphon', el:'dark', pow:55, s:50, t:'foes', leech:0.3 },
+    { n:'Oblivion', el:'dark', pow:160, s:80, t:'foe', execute:true, recoil:0.15 },
+    { n:'Shadow Bolt', el:'dark', pow:80, s:40, t:'foe', leech:0.25 },
+    { n:'Curse of Frailty', el:'dark', pow:0, s:25, t:'foe', poison:1, slow:1 },
+    { n:'Dark Pact', el:'dark', pow:0, s:0, t:'self', offUp:3, hpCost:0.2 }],
+  dark_ranger:      [{ n:'Nightshade Arrow',el:'dark',    pow:50, s:45, t:'foe',    poison:1, blind:0.5 },
+    { n:'Death Volley', el:'dark', pow:45, s:45, t:'foes', poison:0.4 },
+    { n:'Night Hunter', el:'dark', pow:120, s:60, t:'foe', execute:true, critBonus:0.2 },
+    { n:'Shadow Arrow', el:'dark', pow:50, s:25, t:'foe', slow:1 },
+    { n:'Cripple', el:'dark', pow:0, s:25, t:'foe', weaken:2 },
+    { n:"Hunter's Shroud", el:'dark', pow:0, s:35, t:'self', haste:2, offUp:1 }],
+  psychic_fighter: [{ n:'Mind Crush', el:'psychic', pow:60, s:30, t:'foe', staDrain:20 },
+    { n:'Mind Bash',     el:'psychic', pow:55, s:40, t:'foe', confuse:0.5, teamSta:0.15 }, { n:'Mindbreaker', el:'psychic', pow:110, s:60, t:'foe', dispel:true, weaken:1 },
+    { n:'Focus Strike', el:'psychic', pow:55, s:25, t:'foe', critBonus:0.3, pierce:true }, { n:'Mind Link', el:'psychic', pow:0, s:30, t:'allies', staGain:20, cleanse:true },
+    { n:'Psychic Wave', el:'psychic', pow:55, s:50, t:'foes', weaken:1 }],
+  psychic_cleric:   [{ n:'Clarity', el:'psychic', pow:0, s:45, t:'allies', staGain:20, veil:1 },
+    { n:'Mass Hysteria', el:'psychic', pow:0, s:40, t:'foes', confuse:0.6 },
+    { n:'Psychic Collapse', el:'psychic', pow:0, s:60, t:'foes', expose:2, slow:1 },
+    { n:'Mind Fog', el:'psychic', pow:0, s:30, t:'foes', weaken:1 },
+    { n:'Psi Wave', el:'psychic', pow:40, s:35, t:'foes', critBonus:0.2 },
+    { n:'Mind Shatter', el:'psychic', pow:55, s:50, t:'foes', staDrain:20 }],
+  psychic_rogue:    [{ n:'Psycho Cut', el:'psychic', pow:65, s:45, t:'foe', staDrain:25, critBonus:0.15 },
+    { n:'Psi Blades', el:'psychic', pow:35, s:30, t:'foe', hits:2, exposeCh:0.3 },
+    { n:'Mind Rend', el:'psychic', pow:120, s:60, t:'foe', weaken:1, dispel:true },
+    { n:'Mind Prick', el:'psychic', pow:35, s:15, t:'foe', slow:1 },
+    { n:'Mind Games', el:'psychic', pow:0, s:25, t:'foe', confuse:0.7, blind:0.5 },
+    { n:'Mental Theft', el:'psychic', pow:60, s:40, t:'foe', steal:true }],
+  psychic_mage:     [{ n:'Psystorm',        el:'psychic', pow:45, s:45, t:'foes',   confuse:0.35 },
+    { n:'Time Warp', el:'psychic', pow:0, s:45, t:'foes', slow:2 },
+    { n:'Mindstorm', el:'psychic', pow:80, s:85, t:'foes', weaken:1, expose:1 },
+    { n:'Mind Lock', el:'psychic', pow:0, s:20, t:'foe', confuse:1, slow:1 },
+    { n:'Mana Burn', el:'psychic', pow:40, s:25, t:'foe', dispel:true },
+    { n:'Psychic Lock', el:'psychic', pow:0, s:35, t:'foe', stun:0.5, weaken:1 }],
+  psychic_ranger:   [{ n:'Mind Arrow', el:'psychic', pow:35, s:35, t:'foes', slow:1 },
+    { n:'Hypno Dart', el:'psychic', pow:0, s:25, t:'foe', confuse:0.7, weaken:1 },
+    { n:'Psionic Arrow', el:'psychic', pow:120, s:60, t:'foe', steal:true, critBonus:0.2 },
+    { n:'Psi Arrow', el:'psychic', pow:55, s:20, t:'foe', staDrain:25 },   // single-target siphon: pays for itself; Mind Arrow is the AoE slow
+    { n:'Mind Ward', el:'psychic', pow:0, s:35, t:'allies', shieldPct:0.12, cleanse:true },
+    { n:'Mind Volley', el:'psychic', pow:45, s:45, t:'foes', critBonus:0.2 }],
+  fire_monk:      [{ n:'Dragon Fist',     el:'fire',      pow:55, s:35, t:'foe', burn:0.5, selfOffUp:1 },
+    { n:'Phoenix Kick', el:'fire', pow:70, s:40, t:'foe', teamHeal:0.15 },
+    { n:'Inferno Palm', el:'fire', pow:130, s:65, t:'foe', mendAlly:0.4, recoil:0.1 },
+    { n:'Ember Kick', el:'fire', pow:50, s:20, t:'foe', critBonus:0.2, selfHaste:1 },
+    { n:'Burning Spirit', el:'fire', pow:0, s:30, t:'self', offUp:1, regen:[0.1,3] },
+    { n:'Blazing Combo', el:'fire', pow:30, s:45, t:'foe', hits:3, exposeCh:0.25 }],
+  water_monk:     [{ n:'Flowing Palm', el:'water', pow:50, s:35, t:'foe', cleanseTeam:true },
+    { n:'Tide Turner', el:'water', pow:60, s:40, t:'foe', dispel:true, teamSta:0.15 },
+    { n:'Tsunami Palm', el:'water', pow:120, s:65, t:'foe', stun:0.3 },
+    { n:'Ripple Palm', el:'water', pow:45, s:20, t:'foe', slow:1 },
+    { n:'Still Water', el:'water', pow:0, s:25, t:'self', veil:1, regen:[0.1,3] },
+    { n:'Healing Current', el:'water', pow:0, s:45, t:'allies', healPct:0.24, regen:[0.1,3] }],
+  life_monk:      [{ n:'Vital Palm', el:'life', pow:50, s:35, t:'foe', teamSta:0.15 },
+    { n:'Bloom Strike', el:'life', pow:60, s:40, t:'foe', mendAlly:0.3, cleanseTeam:true },
+    { n:'Gaia Palm', el:'life', pow:110, s:65, t:'foe', leech:0.4, teamHeal:0.15 },
+    { n:'Vine Kick', el:'life', pow:45, s:20, t:'foe', poison:0.5, critBonus:0.15 },
+    { n:'Lifeforce', el:'life', pow:0, s:30, t:'ally', healPct:0.31, regen:[0.1,3] },
+    { n:'Thorned Flurry', el:'life', pow:25, s:45, t:'foe', hits:4, slowCh:0.25 }],
+  lightning_monk: [{ n:'Thunder Kick', el:'lightning', pow:30, s:35, t:'foe', hits:2, para:0.4, selfHaste:1 },
+    { n:'Volt Combo', el:'lightning', pow:30, s:40, t:'foe', hits:3, staDrain:10 },
+    { n:"Raijin's Fury", el:'lightning', pow:25, s:70, t:'foe', hits:6, slowCh:0.2 },
+    { n:'Static Jab', el:'lightning', pow:40, s:15, t:'foe', critBonus:0.25, selfHaste:1 },
+    { n:'Lightning Reflex', el:'lightning', pow:0, s:30, t:'self', haste:2, veil:1 },
+    { n:'Thunder Palm', el:'lightning', pow:70, s:40, t:'foe', stun:0.3, mendAlly:0.3 }],
+  earth_monk:     [{ n:'Mountain Palm',   el:'earth',     pow:65, s:40, t:'foe', stun:0.3, selfArmor:1 },
+    { n:'Earthshaker Kick', el:'earth', pow:45, s:40, t:'foes', slow:1 },
+    { n:"Mountain's Wrath", el:'earth', pow:130, s:65, t:'foe', pierce:true, expose:1 },
+    { n:'Stone Palm', el:'earth', pow:50, s:20, t:'foe', slow:1 },
+    { n:'Iron Body', el:'earth', pow:0, s:30, t:'self', armor:2, taunt:2 },
+    { n:'Boulder Fist', el:'earth', pow:80, s:45, t:'foe', splash:25 }],
+  light_monk:     [{ n:'Dawn Palm',       el:'light',     pow:50, s:35, t:'foe', blind:0.4, mendAlly:0.4 },
+    { n:'Halo Kick', el:'light', pow:60, s:40, t:'foe', teamShield:0.15 },
+    { n:'Sun Palm', el:'light', pow:120, s:65, t:'foe', teamHeal:0.22 },
+    { n:'Radiant Jab', el:'light', pow:45, s:20, t:'foe', expose:1 },
+    { n:'Serenity', el:'light', pow:0, s:30, t:'allies', shieldPct:0.12, cleanse:true },
+    { n:'Purifying Strike', el:'light', pow:70, s:40, t:'foe', dispel:true, critBonus:0.15 }],
+  dark_monk:      [{ n:'Shadow Fist',     el:'dark',      pow:30, s:35, t:'foe', hits:2, leech:0.4 },
+    { n:'Soul Strike', el:'dark', pow:60, s:40, t:'foe', steal:true },
+    { n:'Death Touch', el:'dark', pow:130, s:65, t:'foe', execute:true, staDrain:30 },
+    { n:'Shadow Jab', el:'dark', pow:45, s:20, t:'foe', blind:0.3, critBonus:0.15 },
+    { n:'Dark Meditation', el:'dark', pow:0, s:0, t:'self', offUp:2, hpCost:0.1 },
+    { n:'Nightmare Fists', el:'dark', pow:25, s:45, t:'foe', hits:4, exposeCh:0.2 }],
+  psychic_monk:   [{ n:'Psychic Palm', el:'psychic', pow:50, s:35, t:'foe', confuse:0.4, dispel:true },
+    { n:'Psi Barrage', el:'psychic', pow:30, s:40, t:'foe', hits:3, staDrain:10 },
+    { n:'Enlightenment', el:'psychic', pow:120, s:65, t:'foe', weaken:1, teamSta:0.2 },
+    { n:'Mind Jab', el:'psychic', pow:40, s:15, t:'foe', slow:1 },
+    { n:'Clear Mind', el:'psychic', pow:0, s:15, t:'self', veil:1, regen:[0.1,3] },
+    { n:'Mind Over Body', el:'psychic', pow:0, s:40, t:'allies', veil:1, shieldPct:0.1 }],
+  fire_bulwark: [{ n:'Molten Hammer', el:'fire', pow:55, s:35, t:'foe', burn:0.5 },
+    { n:'Flame Bulwark', el:'fire', pow:0, s:45, t:'allies', shieldPct:0.12, offUp:1 },
+    { n:'Volcano Slam', el:'fire', pow:90, s:70, t:'foes', expose:1 },
+    { n:'Searing Shield', el:'fire', pow:0, s:30, t:'self', shieldPct:0.2, offUp:1 },
+    { n:'Blazing Sweep', el:'fire', pow:35, s:35, t:'foes', burn:0.3 },
+    { n:'Magma Crush', el:'fire', pow:85, s:45, t:'foe', expose:1 }],
+  water_bulwark: [{ n:'Tidal Shield', el:'water', pow:0, s:30, t:'self', shieldPct:0.3, regen:[0.1,3] },
+    { n:'Tidal Wall', el:'water', pow:0, s:45, t:'allies', shieldPct:0.15 },
+    { n:"Ocean's Bulwark", el:'water', pow:0, s:50, t:'self', taunt:3, cleanse:true, staGain:30 },
+    { n:'Undertow Hammer', el:'water', pow:55, s:30, t:'foe', slow:1 },
+    { n:'Wave Guard', el:'water', pow:0, s:30, t:'ally', guard:3, healPct:0.25 },
+    { n:'Riptide Slam', el:'water', pow:50, s:45, t:'foes', weaken:1 }],
+  life_bulwark: [{ n:'Thornhide', el:'life', pow:0, s:30, t:'self', regen:[0.1,3], shieldPct:0.15 },
+    { n:'Sap Smash', el:'life', pow:65, s:40, t:'foe', leech:0.4 },
+    { n:'Gaia Hammer', el:'life', pow:80, s:70, t:'foes', poison:0.6, teamLeech:0.2 },
+    { n:'Briar Hammer', el:'life', pow:55, s:30, t:'foe', poison:0.5 },
+    { n:'Root Guard', el:'life', pow:0, s:30, t:'ally', guard:3, cleanse:true },
+    { n:'Overgrown Bastion', el:'life', pow:0, s:45, t:'allies', regen:[0.1,3] }],
+  lightning_bulwark: [{ n:'Static Shield', el:'lightning', pow:0, s:30, t:'self', shieldPct:0.25, haste:1 },
+    { n:'Thunder Wall', el:'lightning', pow:0, s:50, t:'allies', shieldPct:0.1, haste:1 },
+    { n:'Storm Anvil', el:'lightning', pow:110, s:60, t:'foe', staDrain:30 },
+    { n:'Shock Hammer', el:'lightning', pow:55, s:30, t:'foe', para:0.4 },
+    { n:'Charged Guard', el:'lightning', pow:0, s:30, t:'ally', guard:3, staGain:25 },
+    { n:'Arc Slam', el:'lightning', pow:50, s:45, t:'foes', para:0.3 }],
+  earth_bulwark: [{ n:'Granite Rest', el:'earth', pow:0, s:35, t:'self', healPct:0.3, armor:1 },
+    { n:'Quake Hammer', el:'earth', pow:60, s:50, t:'foes', expose:1 },
+    { n:'Tectonic Crush', el:'earth', pow:140, s:70, t:'foe', pierce:true, selfStun:true },
+    { n:'Boulder Hammer', el:'earth', pow:60, s:30, t:'foe', expose:1 },
+    { n:'Tremor Stomp', el:'earth', pow:40, s:35, t:'foes', slow:1 },
+    { n:'Living Fortress', el:'earth', pow:0, s:45, t:'allies', armor:1, selfTaunt:2 }],
+  light_bulwark: [{ n:'Holy Aegis', el:'light', pow:0, s:30, t:'ally', shieldPct:0.25, cleanse:true },
+    { n:'Divine Bulwark', el:'light', pow:0, s:40, t:'self', taunt:3, regen:[0.1,3] },
+    { n:'Judgment Slam', el:'light', pow:85, s:70, t:'foes', blind:0.4, teamShield:0.1 },
+    { n:'Radiant Hammer', el:'light', pow:55, s:30, t:'foe', blind:0.4 },
+    { n:'Consecrate', el:'light', pow:0, s:40, t:'allies', healPct:0.19 },
+    { n:'Smiting Hammer', el:'light', pow:80, s:45, t:'foe', mendAlly:0.4 }],
+  dark_bulwark: [{ n:'Shadow Guard', el:'dark', pow:0, s:30, t:'ally', guard:3, veil:1 },
+    { n:'Spite Wall', el:'dark', pow:0, s:35, t:'self', taunt:2, offUp:1 },
+    { n:'Abyssal Hammer', el:'dark', pow:85, s:70, t:'foes', leech:0.3 },
+    { n:'Draining Hammer', el:'dark', pow:55, s:30, t:'foe', leech:0.4 },
+    { n:'Dread Presence', el:'dark', pow:0, s:30, t:'foes', weaken:1 },
+    { n:'Soul Crush', el:'dark', pow:85, s:45, t:'foe', execute:true }],
+  psychic_bulwark: [{ n:'Mind Shield', el:'psychic', pow:0, s:30, t:'self', shieldPct:0.25, staGain:25 },
+    { n:'Brainquake', el:'psychic', pow:45, s:45, t:'foes', confuse:0.3 },
+    { n:'Mental Fortress', el:'psychic', pow:0, s:60, t:'allies', shieldPct:0.15, staGain:20 },
+    { n:'Concussive Hammer', el:'psychic', pow:55, s:30, t:'foe', confuse:0.5 },
+    { n:'Psychic Guard', el:'psychic', pow:0, s:30, t:'ally', guard:3, cleanse:true },
+    { n:'Neural Hammer', el:'psychic', pow:80, s:45, t:'foe', staDrain:30 }],
+  fire_bard: [{ n:'Firebrand Anthem', el:'fire', pow:0, s:35, t:'allies', offUp:1, staGain:15 },
+    { n:'Inferno Chorus', el:'fire', pow:55, s:50, t:'foes', burn:0.4 },
+    { n:'Blazing Finale', el:'fire', pow:100, s:75, t:'foes', expose:1, selfStun:true },
+    { n:'Scorching Note', el:'fire', pow:50, s:25, t:'foe', burn:0.6 },
+    { n:'Bonfire Song', el:'fire', pow:0, s:40, t:'allies', healPct:0.19 },
+    { n:'Fan the Flames', el:'fire', pow:0, s:30, t:'ally', offUp:2 }],
+  water_bard: [{ n:'Soothing Melody', el:'water', pow:0, s:40, t:'allies', healPct:0.19, regen:[0.1,3] },
+    { n:'Siren Song', el:'water', pow:0, s:40, t:'foes', confuse:0.5 },
+    { n:"Ocean's Lullaby", el:'water', pow:50, s:70, t:'foes', stun:0.3 },
+    { n:'Drowning Note', el:'water', pow:45, s:25, t:'foe', slow:1 },
+    { n:'Tidal Hymn', el:'water', pow:0, s:40, t:'allies', shieldPct:0.12 },
+    { n:'Rain Song', el:'water', pow:0, s:40, t:'allies', cleanse:true, staGain:20 }],
+  life_bard: [{ n:'Song of Growth', el:'life', pow:0, s:40, t:'allies', regen:[0.1,3] },
+    { n:'Bloom Chorus', el:'life', pow:0, s:50, t:'allies', healPct:0.24, cleanse:true },
+    { n:'Symphony of Life', el:'life', pow:0, s:70, t:'fallen', revive:0.5 },
+    { n:'Thorn Ballad', el:'life', pow:45, s:25, t:'foe', poison:0.6 },
+    { n:'Pollen Waltz', el:'life', pow:0, s:35, t:'foes', poison:0.5 },
+    { n:'Leeching Verse', el:'life', pow:70, s:40, t:'foe', teamLeech:0.3 }],
+  lightning_bard: [{ n:'Electric Riff', el:'lightning', pow:0, s:30, t:'allies', staGain:20 },
+    { n:'Thunder Chorus', el:'lightning', pow:45, s:45, t:'foes', para:0.35 },
+    { n:'Storm Encore', el:'lightning', pow:0, s:60, t:'allies', shieldPct:0.12, haste:1 },
+    { n:'Static Note', el:'lightning', pow:40, s:20, t:'foe', para:0.5 },
+    { n:'Overdrive Solo', el:'lightning', pow:0, s:30, t:'ally', haste:2, offUp:1 },
+    { n:'Power Chord', el:'lightning', pow:80, s:40, t:'foe', critBonus:0.2, staDrain:20 }],
+  earth_bard: [{ n:'Drums of Stone', el:'earth', pow:0, s:35, t:'allies', armor:1 },
+    { n:'Earthen Anthem', el:'earth', pow:0, s:45, t:'allies', shieldPct:0.12 },
+    { n:'Mountain Hymn', el:'earth', pow:0, s:65, t:'allies', healPct:0.4, staGain:20 },
+    { n:'Rumbling Note', el:'earth', pow:50, s:25, t:'foe', slow:1 },
+    { n:'Tremor Beat', el:'earth', pow:35, s:35, t:'foes', stun:0.2 },
+    { n:'Boulder Ballad', el:'earth', pow:85, s:45, t:'foe', expose:1 }],
+  light_bard: [{ n:'Hymn of Dawn', el:'light', pow:0, s:40, t:'allies', healPct:0.24 },
+    { n:'Blinding Fanfare', el:'light', pow:40, s:45, t:'foes', blind:0.35 },
+    { n:'Choir of Heaven', el:'light', pow:0, s:75, t:'fallen', revive:0.6 },
+    { n:'Dazzling Note', el:'light', pow:45, s:25, t:'foe', blind:0.5 },
+    { n:'Radiant Chorus', el:'light', pow:0, s:45, t:'allies', shieldPct:0.1, cleanse:true },
+    { n:'Sacred Duet', el:'light', pow:0, s:30, t:'ally', healPct:0.38, offUp:1 }],
+  dark_bard: [{ n:'Dirge', el:'dark', pow:0, s:30, t:'foes', blind:0.4 },
+    { n:'Shadow Waltz', el:'dark', pow:0, s:40, t:'allies', veil:1 },
+    { n:'Death Knell', el:'dark', pow:130, s:65, t:'foe', execute:true },
+    { n:'Haunting Note', el:'dark', pow:50, s:25, t:'foe', leech:0.4 },
+    { n:'Requiem of Ruin', el:'dark', pow:0, s:30, t:'foe', expose:2 },
+    { n:'Cursed Chorus', el:'dark', pow:45, s:50, t:'foes', teamLeech:0.2 }],
+  psychic_bard: [{ n:'Hypnotic Tune', el:'psychic', pow:0, s:35, t:'foes', confuse:0.4 },
+    { n:'Dissonance', el:'psychic', pow:40, s:45, t:'foes', slow:1, expose:1 },
+    { n:'Madness Aria', el:'psychic', pow:70, s:70, t:'foes', dispel:true },
+    { n:'Mind Note', el:'psychic', pow:45, s:20, t:'foe', staDrain:25 },
+    { n:'Focus Melody', el:'psychic', pow:0, s:40, t:'allies', staGain:25, cleanse:true },
+    { n:'Psychic Harmony', el:'psychic', pow:0, s:30, t:'ally', veil:1, offUp:1 }],
+  fire_sorcerer: [{ n:'Wildfire', el:'fire', pow:45, s:40, t:'foes', burn:0.5 },
+    { n:'Inferno', el:'fire', pow:70, s:55, t:'foes', burn:0.4 },
+    { n:'Sun Burst', el:'fire', pow:120, s:85, t:'foes', burn:0.6, recoil:0.1 },
+    { n:'Fireblast', el:'fire', pow:95, s:40, t:'foe', burn:0.5, recoil:0.15 },
+    { n:'Inner Furnace', el:'fire', pow:0, s:20, t:'self', offUp:2, hpCost:0.1 },
+    { n:'Pyre Mantle', el:'fire', pow:0, s:25, t:'self', offUp:1, shieldPct:0.2 }],
+  water_sorcerer: [{ n:'Rising Tide', el:'water', pow:40, s:40, t:'foes', slow:1 },
+    { n:'Riptide', el:'water', pow:50, s:50, t:'foes', weaken:1, slow:1 },
+    { n:'Maelstrom', el:'water', pow:90, s:75, t:'foes', stun:0.3, slow:1 },
+    { n:'Tidal Ward', el:'water', pow:0, s:30, t:'self', shieldPct:0.3, regen:[0.1,3] },
+    { n:'Ebb and Flow', el:'water', pow:0, s:20, t:'self', staGain:35, regen:[0.1,3] },
+    { n:'Calm Waters', el:'water', pow:0, s:40, t:'allies', shieldPct:0.15, cleanse:true }],
+  life_sorcerer: [{ n:'Toxic Bloom', el:'life', pow:35, s:40, t:'foes', poison:0.7 },
+    { n:'Sap Drain', el:'life', pow:40, s:45, t:'foes', staDrain:20, poison:0.3 },
+    { n:"World Tree's Wrath", el:'life', pow:90, s:80, t:'foes', poison:0.5, teamHeal:0.18 },
+    { n:'Wilting Spores', el:'life', pow:0, s:35, t:'foes', staDrain:25, poison:0.5 },
+    { n:'Verdant Rest', el:'life', pow:0, s:30, t:'self', healPct:0.3, regen:[0.1,3] },
+    { n:'Bloom Mend', el:'life', pow:0, s:40, t:'allies', healPct:0.1, regen:[0.1,3] }],
+  lightning_sorcerer: [{ n:'Arc Storm', el:'lightning', pow:45, s:40, t:'foes', para:0.4 },
+    { n:'Thunderhead', el:'lightning', pow:65, s:50, t:'foes', staDrain:15 },
+    { n:'Tempest', el:'lightning', pow:100, s:75, t:'foes', para:0.5, stun:0.15 },
+    { n:'Forked Bolt', el:'lightning', pow:70, s:30, t:'foe', para:0.4 },
+    { n:'Tailwind Charge', el:'lightning', pow:0, s:35, t:'allies', haste:1 },
+    { n:'Overclock', el:'lightning', pow:0, s:55, t:'allies', haste:2 }],
+  earth_sorcerer: [{ n:'Rockslide', el:'earth', pow:50, s:40, t:'foes', stun:0.15 },
+    { n:'Landslide', el:'earth', pow:70, s:55, t:'foes', stun:0.2 },
+    { n:'Tectonic Wrath', el:'earth', pow:105, s:80, t:'foes', stun:0.3 },
+    { n:'Boulder Smash', el:'earth', pow:85, s:35, t:'foe', stun:0.3 },
+    { n:'Stone Ward', el:'earth', pow:0, s:40, t:'allies', shieldPct:0.15 },
+    { n:'Mountain Hide', el:'earth', pow:0, s:45, t:'allies', armor:1, shieldPct:0.1 }],
+  light_sorcerer: [{ n:'Sunburst', el:'light', pow:45, s:40, t:'foes', blind:0.35 },
+    { n:'Solar Flare', el:'light', pow:60, s:50, t:'foes', burn:0.5 },
+    { n:"Dawn's Judgment", el:'light', pow:95, s:80, t:'foes', burn:0.4, blind:0.3, teamHeal:0.12 },
+    { n:'Quickening Light', el:'light', pow:0, s:35, t:'allies', haste:1 },
+    { n:'Radiant Blessing', el:'light', pow:0, s:35, t:'allies', offUp:1 },
+    { n:'Dawn Mend', el:'light', pow:0, s:45, t:'allies', healPct:0.24 }],
+  dark_sorcerer: [{ n:'Shadow Tide', el:'dark', pow:40, s:40, t:'foes', blind:0.4 },
+    { n:'Nightmare Fog', el:'dark', pow:40, s:50, t:'foes', confuse:0.4 },
+    { n:'Eclipse', el:'dark', pow:90, s:80, t:'foes', blind:0.5, confuse:0.3, poison:0.3 },
+    { n:'Black Venom', el:'dark', pow:50, s:30, t:'foe', poison:0.8 },
+    { n:'Creeping Dread', el:'dark', pow:0, s:35, t:'foes', poison:0.6, confuse:0.3 },
+    { n:'Blinding Gloom', el:'dark', pow:0, s:30, t:'foes', blind:0.6 }],
+  psychic_sorcerer: [{ n:'Mind Storm', el:'psychic', pow:35, s:40, t:'foes', confuse:0.4 },
+    { n:'Psi Bind', el:'psychic', pow:40, s:50, t:'foes', slow:1, stun:0.2 },
+    { n:'Mindquake', el:'psychic', pow:80, s:80, t:'foes', confuse:0.5, stun:0.3, weaken:1 },
+    { n:'Mental Snare', el:'psychic', pow:0, s:30, t:'foe', stun:0.7, confuse:0.3 },
+    { n:'Disorient', el:'psychic', pow:0, s:35, t:'foes', confuse:0.5 },
+    { n:'Psychic Drain', el:'psychic', pow:0, s:40, t:'foes', staDrain:25, dispel:true }]
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+/* ---- move-slot passives: learned like a move (class one at Lv25, element one at Lv45), take a move slot, always on ---- */
+const PASSIVE_MOVE_LV = { cls:25, el:45 };
+const PM = (id, n, d) => ({ n, passive:id, d, el:'neutral', pow:0, s:0, t:'self' });
+const CLASS_PMOVES = {
+  fighter:  PM('hold', 'Hold the Line', 'Passive: takes 25% less damage while taunting.'),
+  cleric:   PM('devotion', 'Devotion', 'Passive: healing a target also cures its ailments.'),
+  rogue:    PM('evasion', 'Evasion', 'Passive: 25% chance to dodge single-target hits.'),
+  mage:     PM('overflow', 'Overflow', 'Passive: damage left over after a KO spills onto another foe.'),
+  ranger:   PM('huntmark', "Hunter's Instinct", 'Passive: the first foe it hits each fight is marked (the next 2 hits on it crit).'),
+  monk:     PM('ironbody', 'Iron Body', 'Passive: takes 25% less damage while above half HP.'),
+  bulwark:  PM('retaliate', 'Retaliation', 'Passive: while taunting, hits back for 25% of the damage it takes.'),
+  bard:     PM('encore', 'Encore', 'Passive: 25% chance for a song (support or debuff move) to play twice for free.'),
+  sorcerer: PM('wellspring', 'Wellspring', 'Passive: regains 10 STA at the end of every round.')
+};
+const ELEM_PMOVES = {
+  fire:      PM('kindling', 'Kindling', 'Passive: burns it inflicts last 1 turn longer.'),
+  water:     PM('ebb', 'Ebb and Flow', 'Passive: 25% of the healing it does or receives also restores its STA.'),
+  earth:     PM('bedrock', 'Bedrock', 'Passive: +25% DEF and SpD, and it can\'t be stunned.'),
+  life:      PM('photo', 'Photosynthesis', 'Passive: regenerates 5% max HP at the end of every round.'),
+  lightning: PM('overcharge', 'Overcharge', 'Passive: +25% SPE until its first action of each fight.'),
+  light:     PM('radiance', 'Radiance', 'Passive: every ally starts each fight with a shield worth 10% of its max HP.'),
+  dark:      PM('nightfall', 'Nightfall', 'Passive: +25% damage to foes below half HP.'),
+  psychic:   PM('foresight', 'Foresight', 'Passive: the first hit it takes each fight is halved.')
+};
+// True if u has passive id, either as its class passive or as a learned move-slot passive.
+const hasPas = (u, id) => !!u && (u.pas === id || (!!u.moves && u.moves.some(m => m.passive === id)));
+function learnset(el, cls) {
+  const out = [];
+  if (CLASS_PMOVES[cls]) out.push({ lvl:PASSIVE_MOVE_LV.cls, m:{ ...CLASS_PMOVES[cls], tag:'Passive' } });
+  if (ELEM_PMOVES[el]) out.push({ lvl:PASSIVE_MOVE_LV.el, m:{ ...ELEM_PMOVES[el], tag:'Passive' } });
+  const cl = CLASS_LEARN[cls] || {}, combos = COMBO_MOVES[el + '_' + cls] || [];
+  const full = combos.length >= comboLv(cls).length;   // only swap once that combo set is complete
+  // Element moves are gone: slimes learn class moves + element/class combo moves only.
+  (CLASS_MOVES[cls] || []).forEach((m, i) => { if (!(full && (cl.dropCls || []).includes(i))) out.push({ lvl:LEARN_LV.cls[i], m:tagCat({ ...m, el:m.el === 'self' ? el : m.el, tag:'Class' }, cls) }); });
+  combos.forEach((m, i) => out.push({ lvl:(full ? comboLv(cls) : LEARN_LV.combo)[i], m:tagCat({ ...m, tag:'Combo' }, cls) }));
+  const order = { Element:0, Class:1, Combo:2, Passive:3 };
+  return out.sort((a, b) => a.lvl - b.lvl || order[a.m.tag] - order[b.m.tag]);
+}
+const REST = { n:'Rest', el:'neutral', pow:0, s:0, t:'self', rest:REST_PCT };
+
+const pct = x => Math.round(x * 100) + '%';
+const TNAME = { foe:'1 foe', foes:'all foes', self:'self', ally:'1 ally', allies:'all allies', fallen:'KO\'d ally' };
+// Power color: green for light hits up to dark red for the biggest (multi-hit moves use their total).
+const POW_COLORS = [[40,'#90be6d'],[55,'#c5d86d'],[70,'#f9c74f'],[85,'#f8961e'],[100,'#f3722c'],[Infinity,'#e01e37']];
+const powColor = m => { const p = (m.pow || 0) * (m.hits || 1); return POW_COLORS.find(([t]) => p < t)[1]; };
+// Stat stages (like Pokemon): each stage is 25%. Raises stack to +150% (6 stages), lowers to -75% (3 stages).
+// They last the whole fight. 1 stage = raises/lowers, 2 = sharply, 3+ = drastically.
+const ST_MIN = -3, ST_MAX = 6;
+const stMul = s => 1 + 0.25 * s;
+const stN = (v, dflt) => v === true ? dflt : v;
+const stWord = (n, what) => `${['', '', 'sharply ', 'drastically '][Math.min(3, Math.abs(n))]}${n > 0 ? 'raises' : 'lowers'} ${what} ${Math.abs(n) * 25}%`;
+function mdesc(m) {
+  if (m.passive) return m.d;
+  const s = [];
+  if (m.pow) s.push(`<span class="pw" style="color:${powColor(m)}">${m.hits > 1 ? `POW ${m.pow} x${m.hits}` : `POW ${m.pow}`}</span>`);
+  if (m.burn) s.push(m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`);
+  if (m.poison) s.push(m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`);
+  if (m.stun) s.push(`${pct(m.stun)} stun`);
+  if (m.para) s.push(m.para >= 1 ? 'paralyzes' : `${pct(m.para)} paralyze`);
+  if (m.blind) s.push(`${pct(m.blind)} blind`);
+  if (m.confuse) s.push(`${pct(m.confuse)} confuse`);
+  if (m.staDrain) s.push(`drain ${m.staDrain} STA`);
+  if (m.mendAlly) s.push(`heals hurt ally ${pct(m.mendAlly)} of dmg`);
+  if (m.leech) s.push(`drain ${pct(m.leech)}`);
+  if (m.recoil) s.push(`${pct(m.recoil)} recoil`);
+  if (m.execute) s.push('x1.5 vs low HP');
+  if (m.healPct) s.push(`heal ${pct(m.healPct)}`);
+  if (m.revive) s.push(`revive at ${pct(m.revive)}`);
+  if (m.shieldPct) s.push(`shield ${pct(m.shieldPct)}`);
+  if (m.regen) s.push(`regen ${pct(m.regen[0])}/turn x${m.regen[1]} (stacks)`);
+  const tgt = m.t === 'foes' ? 'foes\' ' : m.t === 'foe' ? 'foe\'s ' : m.t === 'allies' ? 'team\'s ' : m.t === 'self' ? '' : 'ally\'s ';
+  if (m.offUp) s.push(stWord(m.offUp, tgt + 'OFF'));
+  if (m.weaken) s.push(stWord(-m.weaken, tgt + 'OFF'));
+  const dw = m.exp === 's' ? 'SpD' : m.exp === 'b' ? 'DEF & SpD' : 'DEF';
+  if (m.expose) s.push(stWord(-m.expose, tgt + dw));
+  if (m.slow) s.push(stWord(-m.slow, tgt + 'SPE'));
+  if (m.guard) s.push(`takes single-target hits for that ally (${m.guard} turns)`);
+  if (m.bonusVs) s.push(`x1.5 damage vs ${{ burn:'burned', poison:'poisoned', para:'paralyzed', stun:'stunned', blind:'blinded', confuse:'confused' }[m.bonusVs]} foes`);
+  if (m.weakenCh) s.push(`${pct(m.weakenCh)} per hit: lowers OFF 25%`);
+  if (m.exposeCh) s.push(`${pct(m.exposeCh)} per hit: lowers ${dw} 25%`);
+  if (m.slowCh) s.push(`${pct(m.slowCh)} per hit: lowers SPE 25%`);
+  if (m.haste) s.push(stWord(m.haste, tgt + 'SPE'));
+  if (m.veil) s.push('veil (30% dodge)');
+  if (m.staGain) s.push(`+${m.staGain} STA`);
+  if (m.armor) s.push(stWord(m.armor, tgt + 'DEF & SpD'));
+  if (m.cleanse) s.push('cures bad statuses');
+  if (m.critBonus) s.push('high crit');
+  if (m.staCharge) s.push(`+${pct(m.staCharge)} STA`);
+  if (m.splash) s.push(`POW ${m.splash} to other foes`);
+  if (m.dispel) s.push('removes foe buffs');
+  if (m.teamLeech) s.push(`team heals ${pct(m.teamLeech)} of dmg`);
+  if (m.foeStaDrain) s.push(`foes -${pct(m.foeStaDrain)} STA`);
+  if (m.teamSta) s.push(`team +${pct(m.teamSta)} STA`);
+  if (m.teamShield) s.push(`team shield ${pct(m.teamShield)}`);
+  if (m.teamHeal) s.push(`team heal ${pct(m.teamHeal)}`);
+  if (m.cleanseTeam) s.push('cures team');
+  if (m.selfOffUp) s.push(stWord(m.selfOffUp, 'own OFF'));
+  if (m.selfHaste) s.push(stWord(stN(m.selfHaste, 2), 'own SPE'));
+  if (m.selfArmor) s.push(stWord(stN(m.selfArmor, 1), 'own DEF & SpD'));
+  if (m.selfVeil) s.push('self veil');
+  if (m.taunt) s.push(`taunt ${m.taunt} turns`);
+  if (m.selfTaunt) s.push(`taunts 2 turns (self)`.replace('2', m.selfTaunt));
+  if (m.selfStun) s.push('stuns self');
+  if (m.detonate) s.push('detonates burn/poison');
+  if (m.spread) s.push('spreads its debuffs to all foes');
+  if (m.chain) s.push(`bounces ${m.chain}x`);
+  if (m.charge) s.push('next attack x2');
+  if (m.counter) s.push(`counter POW ${m.counter.pow}`);
+  if (m.steal) s.push('steals buffs');
+  if (m.pierce) s.push('ignores shields, DEF boosts, resist');
+  if (m.berserk) s.push('stronger at low HP');
+  if (m.hpCost) s.push(`costs ${pct(m.hpCost)} HP`);
+  if (m.mark) s.push(`next ${m.mark} hits on it crit`);
+  if (m.overheal) s.push('overheal becomes shield');
+  if (m.bomb) s.push(`bomb: POW ${m.bomb.pow} to all foes at end of round`);
+  s.push(TNAME[m.t]);
+  return s.join(' · ');
+}
+
+/* ================= worlds ================= */
+const REALM_WORLDS = [[
+  // Each base element shows up equally often across worlds (6 times each), so no starter is favored.
+  { name:'Overworld',    bg:'#14121f', els:['water','fire','life','earth','lightning'] },
+  { name:'Mountains',    bg:'#121826', els:['earth','lightning','water','fire','life'] },
+  { name:'Cave',         bg:'#100e12', els:['earth','dark','water','life','lightning'] },
+  { name:'Dungeon',      bg:'#170f1a', els:['dark','fire','earth','water','lightning'] },
+  { name:"Dragon's Den", bg:'#1f0e10', els:['fire','fire','lightning','earth','light'] },
+  { name:'Overworld 2',  bg:'#14121f', els:['water','fire','life','earth','lightning','light','dark'] },
+  { name:'Feywild',      bg:'#0f1f18', els:['life','life','water','water','psychic','light'] },
+  { name:"God's Planes", bg:'#1f1a0c', els:['light','dark','psychic','light','dark','psychic'] }
+],
+  // Realm 2: Genre Hop. Each world is a different kind of story, with a placeholder boss for now.
+  [
+    { name:'Space Station',   bg:'#0b1030', els:['lightning','psychic','light','water','dark'] },
+    { name:'Wild West',       bg:'#2a1a10', els:['earth','fire','lightning','life','dark'] },
+    { name:'Pirate Seas',     bg:'#0c2038', els:['water','water','lightning','earth','dark','fire'] },
+    { name:'Haunted Mansion', bg:'#1a1226', els:['dark','psychic','dark','life','light'] },
+    { name:'Cyber City',      bg:'#08181c', els:['lightning','psychic','light','fire','water'] },
+    { name:'Candy Kingdom',   bg:'#2a1424', els:['life','light','water','fire','earth','psychic'] },
+    { name:'Wasteland',       bg:'#241810', els:['fire','earth','dark','lightning','life'] },
+    { name:'The Fourth Wall', bg:'#12121a', els:['light','dark','psychic','light','dark','psychic'] }
+  ]];
+// The realm you are playing: WORLDS and BOSS_INFO point at it (see setRealm). Realm 2 needs Realm 1 cleared.
+const REALM_DEF = [
+  { name:'Realm 1: The Classic Quest', blurb:'Eight worlds of fantasy heroes.', foeHp:1, foeOff:1 },
+  { name:'Realm 2: Genre Hop',         blurb:'Eight worlds, one for every kind of story.', foeHp:1.5, foeOff:1.3 }
+];
+let REALM = 0, WORLDS = REALM_WORLDS[0];
+const FLOORS = 9;   // rows per world, matching MAP_ROWS (the last row is the boss)
+// Enemy level for a world + floor. Matches the party's pace with fixed level rewards
+// (boss 4, elite 2, fight 1): about 8 levels per world.
+const LV_PER_WORLD = 8.2, LV_PER_FLOOR = 0.6;
+const lvlOf = (w, f) => Math.min(LVL_MAX, 1 + Math.round(w * LV_PER_WORLD + f * LV_PER_FLOOR));
+
+const ROLES = { fighter:'Squire', rogue:'Thief', cleric:'Acolyte', barb:'Brute', goblin:'Goblin' };
+const ADJ = { fire:'Ember', water:'Tide', life:'Moss', earth:'Stone', lightning:'Spark', light:'Holy', dark:'Shade', psychic:'Mind' };
+const E_MOVE = {
+  fire:{n:'Torch Swing',el:'fire',pow:50,s:25,t:'foe',burn:0.25}, water:{n:'Splash',el:'water',pow:55,s:25,t:'foe'},
+  life:{n:'Vine Lash',el:'life',pow:45,s:25,t:'foe',leech:0.5}, earth:{n:'Rock Toss',el:'earth',pow:60,s:25,t:'foe'},
+  lightning:{n:'Zap',el:'lightning',pow:50,s:25,t:'foe',stun:0.15}, light:{n:'Holy Smite',el:'light',pow:55,s:25,t:'foe'},
+  dark:{n:'Shadow Claw',el:'dark',pow:50,s:25,t:'foe',poison:0.3}, psychic:{n:'Mind Blast',el:'psychic',pow:50,s:25,t:'foe',stun:0.2}
+};
+// Heavier element moves that normal enemies pick up from world 3 on (elites always have one).
+const E_HEAVY = {
+  fire:{n:'Firestorm',el:'fire',pow:45,s:40,t:'foes',burn:0.3}, water:{n:'Crashing Wave',el:'water',pow:75,s:40,t:'foe',weaken:1},
+  life:{n:'Strangle Vine',el:'life',pow:70,s:40,t:'foe',poison:0.5}, earth:{n:'Rockslide',el:'earth',pow:45,s:40,t:'foes'},
+  lightning:{n:'Thunderbolt',el:'lightning',pow:75,s:40,t:'foe',stun:0.25}, light:{n:'Judgment',el:'light',pow:70,s:45,t:'foe'},
+  dark:{n:'Grave Strike',el:'dark',pow:70,s:45,t:'foe',poison:0.4}, psychic:{n:'Psyshock',el:'psychic',pow:70,s:45,t:'foe',stun:0.25}
+};
+const STRIKE = { n:'Strike', el:'neutral', cat:'p', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE };
+
+/* ================= items ================= */
+// use: consumables kept in the bag (used on the map, never in battle). hold: one per slime, swap freely.
+const ITEMS = {
+  booster: { n:'Move Booster',       kind:'use',  desc:'Upgrade one move: more power or a stronger effect.' },
+  potion:  { n:'Level Potion',       kind:'use',  desc:'Give one slime +2 levels.' },
+  revive:  { n:'Revive',             kind:'use',  desc:'Fully heal one slime and give it +1 level.' },
+  cloak:   { n:'Warding Cloak',      kind:'hold', desc:'SpD +50%, but your OFF is 15% lower.' },
+  sword:   { n:"King Slime's Sword", kind:'hold', desc:'Move power +25%.' },
+  armor:   { n:'Heavy Duty Armor',   kind:'hold', desc:'DEF +50%. Stun, paralyze, confuse and blind land 25% less often on you. Always moves last.' },
+  hat:     { n:'Choice Hat',         kind:'hold', desc:'OFF +50%, but locked into the first move you use each battle.' },
+  badge:   { n:'Choice Badge',       kind:'hold', desc:'SPE +50%, but locked into the first move you use each battle.' },
+  book:    { n:'Alchemy Book',       kind:'hold', desc:'Your status effects are 25% more likely to land.' },
+  clover:  { n:'Lucky Clover',       kind:'hold', desc:'Crit chance +15%.' },
+  fang:    { n:'Vampire Fang',       kind:'hold', desc:'Heal 15% of the damage you deal.' },
+  thorns:  { n:'Thorn Mail',         kind:'hold', desc:'Attackers take 15% of the damage they deal to you.' },
+  feather: { n:'Swift Feather',      kind:'hold', desc:'Start every battle with SPE +25%.' },
+  plume:   { n:'Phoenix Plume',      kind:'hold', desc:'Once per battle, survive a knockout with 1 HP.' },
+  moss:    { n:'Healing Moss',       kind:'hold', desc:'Heal 6% HP at the end of every round.' },
+  ring:    { n:'Energy Ring',        kind:'hold', desc:'Regain 10 extra stamina every round.' }
+};
+const USE_ITEMS = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'use');
+const HOLD_ITEMS = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'hold');
+const ITEM_CHOICES = 3;
+
+/* ================= bosses (story text) ================= */
+const REALM1_BOSSES = [
+  { name:'The Protagonist', spr:'b_hero', intro:'THE PROTAGONIST appears! Spiky hair. Sword bigger than his body. "I fight for my friends!" His party of tropes strikes a pose behind him.',
+    outro:'"This isn\'t over! I still have three more forms!" The Protagonist flees dramatically.' },
+  { name:'Cantmiss', spr:'b_archer', intro:'CANTMISS draws her bow. "I volunteer... to end you." Her arrows never miss, and they freeze on impact.',
+    outro:'Cantmiss lowers her bow. "...I missed." She vanishes into the mountains.' },
+  { name:'Jimmy the Miner', spr:'b_miner', intro:'JIMMY THE MINER cracks his knuckles. "Been diggin\' for forty years. You slimes are just dirt with feelings." The angrier he gets, the harder he swings.',
+    outro:'Jimmy sits down. "Alright... break time." He pulls out a pickled egg and waves you through.' },
+  { name:'Grimm Edgelord', spr:'b_edgelord', intro:'GRIMM EDGELORD steps from the shadows. "My backstory is too dark for you." He always strikes first, at your strongest slime, with a fistful of D4s.',
+    outro:'"You... understand me." Grimm Edgelord vanishes in a puff of smoke he brought from home.' },
+  { name:'Dracona Dragonslayer', spr:'b_knight', intro:'DRACONA DRAGONSLAYER lowers her visor. "I have slain forty dragons. Slimes are just wet dragons." Her two squires ready their blades.',
+    outro:'Dracona kneels. "Worthy foes. I will tell the Order you fight with honor... and goo."' },
+  { name:'Claire Rick', spr:'b_healer', intro:'CLAIRE RICK smiles sweetly. "Don\'t mind me, I\'m just the healer!" She keeps her tank alive while her mage blasts you. Leave her alone and see what happens.',
+    outro:'Claire Rick drops her staff. "Okay. You win. Please don\'t tell the party I lost."' },
+  { name:'Monkey D. Monk', spr:'b_monkey', intro:'MONKEY D. MONK stretches way too far. "I\'m gonna be King of the Slimes!" He\'s blindingly fast, always strikes first, and every punch scrambles your thoughts.',
+    outro:'Monkey D. Monk laughs. "You\'re strong! Join my crew!" Then he bounces off to look for meat.' },
+  { name:'Ascended Protagonist', spr:'b_ascended', intro:'The Protagonist RETURNS, glowing, winged, with a new theme song. "I have ascended beyond plot itself." His friends are with him, and at half HP the power of friendship kicks in: they get back up and he starts acting twice a turn.',
+    outro:'The Ascended Protagonist falls. "Impossible... I had... plot armor..."' }
+];
+// Realm 2 placeholder: the Protagonist stands in until each world's real boss exists.
+const REALM2_BOSSES = [
+  { name:'Lance Skydancer', spr:'b_lance',    els:['psychic', 'light'],           intro:'LANCE SKYDANCER drops in from orbit, crystal blade humming. "I have a good feeling about this fight."', outro:'Lance flickers out. "That went... better in the simulation."' },
+  { name:'High Noon',       spr:'b_noon',     els:['fire', 'earth'],              intro:'HIGH NOON squares up in the dust, the sun right behind him. "Draw."', outro:'High Noon tips his hat. "Reckon it\'s past noon."' },
+  { name:'Piper Ratty',     spr:'b_piper',    els:['life', 'water'],              intro:'PIPER RATTY strikes up a sea shanty, and her rat crew swarms the deck. "Dance, ye scurvy lot!"', outro:'Piper bows. "The rats vote for a rematch."' },
+  { name:'Matilda',         spr:'b_matilda',  els:['dark', 'water'],              intro:'MATILDA glides down the stairs with her husband\'s head in hand. "He says you\'re not invited."', outro:'Matilda sighs. "Back to the crypt, dear."' },
+  { name:'Soldier 67',      spr:'b_soldier',  els:['lightning', 'light'],         intro:'SOLDIER 67 racks his pulse rifle. "I\'m too old for this city."', outro:'Soldier 67 lowers the rifle. "Fine. I\'ll retire. Again."' },
+  { name:'Roxxane Candy',   spr:'b_roxxane',  els:['earth', 'psychic'],           intro:'ROXXANE CANDY slams a power chord and the sugar rains down. "Hope you brought earplugs!"', outro:'Roxxane grins. "Encore? No? Rude."' },
+  { name:'The Janitor',     spr:'b_janitor',  els:['life', 'earth'],              intro:'THE JANITOR leans on a very alive mop. "Somebody has to clean up this mess. Looks like it\'s you."', outro:'The Janitor shrugs. "Another spill. Story of my life."' },
+  { name:'The Narrator',    spr:'b_narrator', els:['light', 'psychic', 'dark'],   intro:'THE NARRATOR clears his throat. "And so, the heroes arrived at the final page. Sadly, it was not theirs."', outro:'The Narrator closes the book. "...Well. That was not in the script."' }
+];
+let BOSS_INFO = REALM1_BOSSES;
+function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES][r]; }
+
