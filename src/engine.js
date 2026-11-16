@@ -368,11 +368,188 @@ const BOSSES2 = [
     h.undying = { pct:0.3, shield:0.1, title:'DEUS EX MACHINA', say:'The Narrator: "And just when all seemed lost..." A golden crane lowers him back onto the stage.' };
     const team = [h, named(side(w, L, 'psychic', 'cleric', 0.3), 'Editor'), named(side(w, L, 'dark', 'rogue', 0.3), 'Critic')]; h.teamRef = team; return team; }
 ];
-function bossTeam(w, L) { return REALM ? BOSSES2[Math.min(w, BOSSES2.length - 1)](w, L) : BOSSES[Math.min(w, BOSSES.length - 1)](w, L); }
+// Realm 3 bosses (World Domination). New tricks: boomerangs that come back (rang), arrows that cycle elements (rainbow),
+// abductions (abduct), executive orders (decree), sabers that fizzle (fizzle) and the Sun's rising heat (heat).
+if (typeof SPR !== "undefined") SPR.corgi = [
+  "................",
+  "................",
+  "..R...R.........",
+  ".kRk.kRk........",
+  ".kook.kok.......",
+  "kooookook.......",
+  "koroooorok......",
+  "kwoooooook...kk.",
+  ".kwwwoooook.kok.",
+  "..kwwoooooookok.",
+  "..kwwwoooooooook",
+  "..kwwwwwoooooook",
+  "...kkwwwwwwwwkk.",
+  "...kwk.kkk.kwk..",
+  "...kwk.....kwk..",
+  "...kk......kk..."
+];
+const SUN_LV = 7;   // the Sun sits this many levels above the Moon's base boss level
+function boss3(w, L, info, o) { const u = bossUnit(w, L, { name:info.name, el:info.els[0], spr:info.spr, ...o }); u.el2 = info.els[1]; return u; }
+// A sidekick that wears its own art (a corgi, the Snow Monster) instead of a recolored class sprite.
+function pet(w, L, el, cls, f, name, spr, moves, big) {
+  const u = named(side(w, L, el, cls, f), name); u.spr = [[spr]]; u.role = null; u.human = false; if (big) u.art = true;
+  if (moves) u.moves = moves.map(clone); return u;
+}
+const RAINBOW = ['fire', 'water', 'life', 'earth', 'lightning', 'light', 'dark', 'psychic'];
+const BOSSES3 = [
+  // 1. Japan: the fallen Protagonist. Slow and soft-hearted; he stops to eat ramen. Burst him before he refuels.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[0], { cls:'fighter', dmul:[1.1, 1], k:{ hp:3.1, off:0.95, def:1.05, spd:3, sta:130 }, basic:{ n:'Lazy Swipe', cat:P },
+      script:[null, 'Belly Flop', 'Ramen Break', 'Couch Quake'],
+      phase:{ at:0.4, title:'THIS IS MY LAST FORM', shield:0.1, script:['Forgotten Limit Break', 'Belly Flop', 'Ramen Break', 'Forgotten Limit Break'], offUp:1, say:'The Protagonist drops his ramen. "I still... have one form left!" His hair spikes up, briefly.',
+              addMoves:[ { n:'Forgotten Limit Break', el:'earth', cat:P, pow:55, s:40, t:'foe', berserk:1 } ] },
+      moves:[ { n:'Belly Flop', el:'earth', cat:P, pow:65, s:35, t:'foe', slow:1 },
+              { n:'Couch Quake', el:'earth', cat:P, pow:35, s:35, t:'foes' },
+              { n:'Ramen Break', el:'water', pow:0, s:25, t:'self', healPct:0.12, regen:[0.06, 2] },
+              { n:'Anime Monologue', el:'psychic', pow:0, s:30, t:'foes', weaken:1 } ] });
+    return [h]; },
+  // 2. United Kingdom: the Queen and two demon corgis that guard her. If the corgis fall, she stops holding back.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[1], { cls:'fighter', dmul:[1.05, 1.05], k:{ hp:2.6, off:1.12, def:1.05, spd:7, crit:0.12 }, basic:{ n:'Royal Pommel', cat:P },
+      script:['Royal Cleave', 'Knighting', 'Stiff Upper Lip', 'Knighting'],
+      phase:{ alone:true, name:'The Queen, Unamused', title:'ONE IS NOT AMUSED', shield:0.15, heal:0.15, offUp:1, script:['Off With Their Heads', 'Royal Cleave', 'Knighting', 'Off With Their Heads'],
+              say:'The Queen looks at her fallen corgis. Her face does not move. Her sword does.', addMoves:[ { n:'Off With Their Heads', el:'light', cat:P, pow:60, s:45, t:'foe', execute:true, critBonus:0.2 } ] },
+      moves:[ { n:'Royal Cleave', el:'light', cat:P, pow:40, s:35, t:'foes' },
+              { n:'Knighting', el:'light', cat:P, pow:70, s:35, t:'foe' },
+              { n:'Stiff Upper Lip', el:'light', pow:0, s:30, t:'self', shieldPct:0.2 } ] });
+    const corgi = () => { const c = pet(w, L, 'dark', 'rogue', 0.38, 'Demon Corgi', 'corgi',
+        [ { n:'Royal Guard', el:'dark', pow:0, s:20, t:'ally', guard:2 }, { n:'Ankle Bite', el:'dark', cat:P, pow:40, s:20, t:'foe', bonusVs:'burn' }, { n:'Hellbark', el:'fire', cat:S, pow:25, s:25, t:'foes', burn:0.3 } ]);
+      c.favor = 'fighter'; c.script = ['Royal Guard', 'Ankle Bite', 'Hellbark']; return c; };
+    const team = [h, corgi(), corgi()]; h.teamRef = team; return team; },
+  // 3. Africa: the Lion King taunts and soaks the hits while his two clerics heal and shield him. Break the wall or go around it.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[2], { cls:'bulwark', dmul:[1.15, 1], k:{ hp:3.3, off:1.05, def:1.2, spd:4, sta:130 }, basic:{ n:'Shield Shove', cat:P },
+      script:['Pride Roar', 'Mane Hammer', null, 'Sunlit Bash'],
+      phase:{ at:0.5, title:'KING OF THE PRIDE', shield:0.15, offUp:1, script:['Pride Roar', 'Stampede', 'Mane Hammer', 'Sunlit Bash'], say:'The Lion King roars, and the whole savanna roars with him.',
+              addMoves:[ { n:'Stampede', el:'earth', cat:P, pow:45, s:40, t:'foes', slow:1 } ] },
+      moves:[ { n:'Pride Roar', el:'light', pow:0, s:30, t:'self', selfTaunt:2, armor:1 },
+              { n:'Mane Hammer', el:'earth', cat:P, pow:65, s:35, t:'foe' },
+              { n:'Sunlit Bash', el:'light', cat:P, pow:40, s:30, t:'foe', stun:0.35 } ] });
+    const cl = () => { const c = named(side(w, L, 'life', 'cleric', 0.42), 'Pride Cleric'); c.favor = 'bulwark'; return c; };
+    const team = [h, cl(), cl()]; h.teamRef = team; return team; },
+  // 4. Australia: Boomer Rang. His boomerang hits on the throw, then comes back at the end of the round. Plus dynamite.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[3], { cls:'ranger', dmul:[1, 1], k:{ hp:2.7, off:1.12, def:1.0, spd:8, crit:0.12 }, basic:{ n:'Thong Slap', cat:P },
+      script:['Big Boomerang', 'Dynamite', 'Croc Wrestle', 'Big Boomerang'],
+      phase:{ at:0.5, title:'NO WORRIES', shield:0.15, offUp:1, script:['Double Boomerang', 'Dynamite', 'Big Boomerang', 'Croc Wrestle'], say:'Boomer Rang pulls out a second boomerang. "She\'ll be right, mate!"',
+              addMoves:[ { n:'Double Boomerang', el:'fire', cat:P, pow:30, hits:2, s:45, t:'foe', rang:50 } ] },
+      moves:[ { n:'Big Boomerang', el:'fire', cat:P, pow:50, s:35, t:'foe', rang:40 },
+              { n:'Dynamite', el:'fire', pow:0, s:45, t:'foe', bomb:{ pow:65, burn:0.4 } },
+              { n:'Croc Wrestle', el:'earth', cat:P, pow:40, s:30, t:'foe', stun:0.3 } ] });
+    const team = [h, named(side(w, L, 'earth', 'fighter', 0.45), 'His Mate Dazza')]; h.teamRef = team; return team; },
+  // 5. Antarctica: the Frost Queen freezes and drains stamina. Her Snow Monster hits hard and she rebuilds it every few rounds.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[4], { cls:'sorcerer', dmul:[0.95, 1.2], k:{ hp:2.2, off:1.0, def:1.05, spd:6, sta:150 }, basic:{ n:'Ice Shard', cat:S },
+      script:['Blizzard', 'Flash Freeze', 'Frostbite', 'Ice Mirror'],
+      phase:{ at:0.5, title:'ETERNAL WINTER', shield:0.15, offUp:1, script:['Absolute Zero', 'Frostbite', 'Flash Freeze', 'Blizzard'], say:'The Frost Queen raises her hands. The sun goes out behind the clouds.',
+              addMoves:[ { n:'Absolute Zero', el:'water', cat:S, pow:45, s:50, t:'foes', stun:0.25 } ] },
+      moves:[ { n:'Flash Freeze', el:'water', cat:S, pow:35, s:35, t:'foe', stun:0.35 },
+              { n:'Blizzard', el:'water', cat:S, pow:30, s:35, t:'foes', staDrain:20 },
+              { n:'Frostbite', el:'water', cat:S, pow:40, s:30, t:'foe', staDrain:35, slow:1 },
+              { n:'Ice Mirror', el:'water', pow:0, s:30, t:'self', shieldPct:0.25 } ] });
+    const snow = () => { const m = pet(w, L, 'water', 'bulwark', 0.6, 'Snow Monster', 'b_snowmonster',
+        [ { n:'Avalanche Slam', el:'water', cat:P, pow:65, s:35, t:'foe' }, { n:'Icy Roar', el:'water', pow:0, s:30, t:'foes', weaken:1, slow:1 } ], true);
+      m.script = ['Avalanche Slam', 'Icy Roar', 'Avalanche Slam']; return m; };
+    h.summon = { every:5, make:snow, title:'SNOW MONSTER', say:'The Frost Queen sculpts a fresh Snow Monster out of the blizzard!' };
+    const team = [h, snow()]; h.teamRef = team; return team; },
+  // 6. Tropical Forests: Arabella Rain-bow. Every Rainbow Arrow is the next color of the rainbow (shown on the move).
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[5], { cls:'ranger', dmul:[1, 1.05], k:{ hp:3.0, off:1.15, def:1.0, spd:10, crit:0.15 }, basic:{ n:'Leaf Flick', cat:P },
+      script:['Rainbow Arrow', 'Vine Snare', 'Rainbow Arrow', 'Canopy Cover'],
+      phase:{ at:0.5, title:'DOUBLE RAINBOW', shield:0.15, offUp:1, script:['Double Rainbow', 'Rainbow Arrow', 'Vine Snare', 'Double Rainbow'], say:'Arabella gasps. "A double rainbow... all the way across the sky!"',
+              addMoves:[ { n:'Double Rainbow', el:'water', cat:P, pow:35, hits:2, s:45, t:'foes', rainbow:RAINBOW } ] },
+      moves:[ { n:'Rainbow Arrow', el:'fire', cat:P, pow:60, s:30, t:'foe', rainbow:RAINBOW },
+              { n:'Vine Snare', el:'life', cat:P, pow:30, s:30, t:'foe', stun:0.35, poison:0.5 },
+              { n:'Canopy Cover', el:'life', pow:0, s:30, t:'self', healPct:0.12, regen:[0.08, 3] } ] });
+    const team = [h, named(side(w, L, 'psychic', 'rogue', 0.42), 'Parrot Scout')]; h.teamRef = team; return team; },
+  // 7. USA: Mr. President. Every few rounds he signs an Executive Order (a random rule that hurts you or helps him).
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[6], { cls:'bard', dmul:[1, 1.1], k:{ hp:3.0, off:1.1, def:1.05, spd:7, sta:150 }, basic:{ n:'Gavel Tap', cat:S },
+      script:['Executive Order', 'Lightning Rally', 'Presidential Veto', 'Stump Speech'],
+      phase:{ at:0.5, title:'STATE OF EMERGENCY', shield:0.2, offUp:1, script:['Executive Order', 'Air Strike', 'Lightning Rally', 'Presidential Veto'], say:'Mr. President picks up the red phone. "Yes. All of it. Now."',
+              addMoves:[ { n:'Air Strike', el:'lightning', pow:0, s:50, t:'foe', bomb:{ pow:75, stun:0.3 } } ] },
+      moves:[ { n:'Executive Order', el:'light', pow:0, s:30, t:'self', decree:true },
+              { n:'Lightning Rally', el:'lightning', cat:S, pow:40, s:35, t:'foes', para:0.3 },
+              { n:'Presidential Veto', el:'light', cat:S, pow:60, s:35, t:'foe', dispel:true },
+              { n:'Stump Speech', el:'light', pow:0, s:30, t:'allies', offUp:1 } ] });
+    const ss = () => { const c = named(side(w, L, 'dark', 'fighter', 0.42), 'Secret Service'); c.favor = 'bard';
+      c.moves = [...c.moves.slice(-3), { n:'Take the Bullet', el:'dark', pow:0, s:20, t:'ally', guard:2 }]; return c; };
+    const team = [h, ss(), ss()]; h.teamRef = team; return team; },
+  // 8. The Moon's Champion: the Sun. Its heat rises every round (a clock), Solar Flare is telegraphed, and at half HP: eclipse.
+  (w, L) => { const h = boss3(w, L, REALM3_BOSSES[7], { cls:'sorcerer', dmul:[1.05, 1.15], k:{ hp:4.6, off:1.12, def:1.1, spd:6, sta:170 }, basic:{ n:'Sunburn', cat:S },
+      script:['Corona', 'Solar Flare', 'Sunbeam', 'Fusion Core'],
+      phase:{ at:0.5, name:'The Eclipsed Sun', title:'TOTAL ECLIPSE', shield:0.2, offUp:1, extra:{ el:'dark', el2:'fire' },
+              script:['Umbra', 'Totality', 'Black Corona', 'Umbra'], say:'The Moon slides across the Sun\'s face. The light goes out... and something colder burns behind it.',
+              moves:[ { n:'Umbra', el:'dark', cat:S, pow:40, s:35, t:'foes', blind:0.4 },
+                      { n:'Black Corona', el:'dark', cat:S, pow:65, s:35, t:'foe' },
+                      { n:'Totality', el:'dark', pow:0, s:50, t:'foe', bomb:{ pow:85, stun:0.3 } },
+                      { n:'Sunbeam', el:'light', cat:S, pow:55, s:35, t:'foe' } ] },
+      moves:[ { n:'Corona', el:'fire', cat:S, pow:35, s:35, t:'foes', burn:0.4 },
+              { n:'Solar Flare', el:'fire', pow:0, s:50, t:'foe', bomb:{ pow:85, burn:0.5 } },
+              { n:'Sunbeam', el:'light', cat:S, pow:60, s:35, t:'foe' },
+              { n:'Fusion Core', el:'fire', pow:0, s:35, t:'self', healPct:0.08, shieldPct:0.1 } ] });
+    h.art = true; h.heat = { n:0, step:0.02, max:0.1 };
+    return [h]; }
+];
+// The Elite 4, back to back on the Moon (between them only the usual after-fight revive and 15% heal).
+const MOON_FIGHTS = [
+  // 1. Nellie Strongarms: low-gravity grabs lift a slime out of the fight for a round; her punches grow as she gets hurt.
+  (w, L) => { const h = boss3(w, L, MOON_ELITE[0], { cls:'monk', dmul:[1.05, 1], k:{ hp:3.3, off:1.12, def:1.1, spd:9, crit:0.12 }, basic:{ n:'Jab', cat:P },
+      script:['Low-G Grab', 'Rocket Punch', 'Moonwalk Combo', null],
+      phase:{ at:0.5, title:'MAX REPS', shield:0.15, offUp:1, extra:{ first:true }, script:['Low-G Grab', 'Rocket Punch', 'Rocket Punch', 'Moonwalk Combo'], say:'Nellie tightens her ponytail. "Okay. Warm-up\'s over."' },
+      moves:[ { n:'Low-G Grab', el:'light', cat:P, pow:30, s:35, t:'foe', stun:1 },
+              { n:'Rocket Punch', el:'light', cat:P, pow:60, s:35, t:'foe', berserk:0.5 },
+              { n:'Moonwalk Combo', el:'light', cat:P, pow:20, hits:4, s:35, t:'foe' },
+              { n:'Spot Me', el:'light', pow:0, s:30, t:'self', healPct:0.12, offUp:1 } ] });
+    return [h]; },
+  // 2. The Protagonist, redeemed, with Claire Rick healing and Cantmiss freezing. The full party, one last time.
+  (w, L) => { const h = boss3(w, L, MOON_ELITE[1], { cls:'fighter', dmul:[1.1, 1.05], k:{ hp:2.0, off:1.05, def:1.05, spd:7, crit:0.1 }, basic:{ n:'Hero Strike', cat:P },
+      script:['Comeback Slash', 'Training Arc', 'Omega Overslash II', null],
+      phase:{ at:0.5, title:'MAIN CHARACTER ENERGY', shield:0.15, offUp:1, revive:0.25, script:['Omega Overslash II', 'Comeback Slash', 'Training Arc', 'Comeback Slash'], say:'The Protagonist: "This time, I don\'t fight alone!" His friends get back up.' },
+      moves:[ { n:'Comeback Slash', el:'earth', cat:P, pow:65, s:35, t:'foe' },
+              { n:'Training Arc', el:'earth', pow:0, s:30, t:'self', offUp:1, healPct:0.1 },
+              { n:'Omega Overslash II', el:'light', cat:P, pow:45, s:45, t:'foes' } ] });
+    const claire = boss3(w, L - 1, { ...REALM1_BOSSES[5], els:['light'] }, { cls:'cleric', dmul:[1, 1.2], k:{ hp:1.0, off:0.8, def:0.95, spd:5, sta:150 }, basic:{ n:'Staff Bonk', cat:S },
+      moves:[ { n:'Heal (Finally)', el:'light', pow:0, s:40, t:'ally', healPct:0.18 },
+              { n:'Holy Bubble', el:'light', pow:0, s:35, t:'allies', shieldPct:0.1 },
+              { n:'Smite', el:'light', cat:S, pow:45, s:30, t:'foe' } ] });
+    const cant = boss3(w, L - 1, { ...REALM1_BOSSES[1], els:['water'] }, { cls:'ranger', dmul:[0.95, 1.1], k:{ hp:1.0, off:0.95, def:0.9, spd:10, crit:0.12 }, basic:{ n:'Quick Shot', cat:P },
+      script:['Mark Prey', 'Freeze Arrow', 'Freeze Arrow'],
+      moves:[ { n:'Freeze Arrow', el:'water', cat:P, pow:40, s:30, t:'foe', stun:0.35 },
+              { n:'Mark Prey', el:'water', pow:0, s:25, t:'foe', mark:2 } ] });
+    claire.small = cant.small = true; claire.favor = 'fighter';
+    const team = [h, claire, cant]; h.teamRef = team; return team; },
+  // 3. Glorb: beams a slime up for two rounds (it can't act and can't be hit), copies nothing, probes everything.
+  (w, L) => { const h = boss3(w, L, MOON_ELITE[2], { cls:'mage', dmul:[0.95, 1.15], k:{ hp:2.9, off:1.2, def:1.0, spd:9, sta:150 }, basic:{ n:'Antenna Zap', cat:S },
+      script:['Abduct', 'Raygun', 'Probe', 'Raygun'],
+      phase:{ at:0.5, title:'MOTHERSHIP', shield:0.2, offUp:1, script:['Abduct', 'Mind Melt', 'Raygun', 'Mind Melt'], say:'Glorb presses a big red button. The mothership\'s shadow falls over the Moon.',
+              addMoves:[ { n:'Mind Melt', el:'psychic', cat:S, pow:40, s:40, t:'foes', confuse:0.3 } ] },
+      moves:[ { n:'Abduct', el:'psychic', pow:0, s:40, t:'foe', abduct:2 },
+              { n:'Raygun', el:'psychic', cat:S, pow:55, s:30, t:'foe' },
+              { n:'Probe', el:'dark', cat:S, pow:35, s:30, t:'foe', confuse:0.5, expose:1 },
+              { n:'Saucer Shield', el:'dark', pow:0, s:30, t:'self', shieldPct:0.25 } ] });
+    const team = [h, named(side(w, L, 'psychic', 'rogue', 0.4), 'Grey Drone')]; h.teamRef = team; return team; },
+  // 4. Dark Saber: hits like a truck when his cheap saber works. It doesn't always work.
+  (w, L) => { const h = boss3(w, L, MOON_ELITE[3], { cls:'fighter', dmul:[1.15, 1], k:{ hp:3.7, off:1.25, def:1.1, spd:6, sta:130 }, basic:{ n:'Cape Swish', cat:P },
+      script:['Heavy Breathing', 'Flickering Saber', 'Telekinetic Squeeze', 'Flickering Saber'],
+      phase:{ at:0.4, title:'I AM YOUR... UM', shield:0.15, offUp:1, script:['Flickering Saber', 'Telekinetic Squeeze', 'Flickering Saber', 'Heavy Breathing'], say:'Dark Saber smacks the side of his saber. It hums back to life, mostly.' },
+      moves:[ { n:'Flickering Saber', el:'dark', cat:P, pow:85, s:35, t:'foe', fizzle:0.3 },
+              { n:'Heavy Breathing', el:'dark', cat:S, pow:25, s:30, t:'foes', weaken:1 },
+              { n:'Telekinetic Squeeze', el:'dark', pow:0, s:35, t:'foe', stun:0.6 },
+              { n:'Cardboard Armor', el:'dark', pow:0, s:30, t:'self', shieldPct:0.2 } ] });
+    const tr = () => { const c = named(side(w, L, 'dark', 'ranger', 0.35), 'Bucket Trooper'); c.blind = 3; return c; };   // can't see out of their buckets at first
+    const team = [h, tr(), tr()]; h.teamRef = team; return team; }
+];
+function bossTeam(w, L, node) {
+  if (REALM === 2) {
+    if (isMoon(w)) { const gi = node && node.gi != null ? node.gi : MOON_FIGHTS.length;   // the Elite 4 climb in level; the Sun sits above them all
+      return gi < MOON_FIGHTS.length ? MOON_FIGHTS[gi](w, L - 2 + 2 * gi) : BOSSES3[MOON_W](w, L + SUN_LV); }
+    return BOSSES3[Math.min(w, BOSSES3.length - 1)](w, L);
+  }
+  return REALM ? BOSSES2[Math.min(w, BOSSES2.length - 1)](w, L) : BOSSES[Math.min(w, BOSSES.length - 1)](w, L);
+}
 function makeFoes(w, node, partySize) {
   const f = node.f, L = lvlOf(w, f);
   let foes;
-  if (node.type === 'boss') foes = bossTeam(w, bossLvl(w));   // later bosses sit a couple of levels above their world
+  if (node.type === 'boss') foes = bossTeam(w, bossLvl(w), node);   // later bosses sit a couple of levels above their world
   else if (node.type === 'elite') foes = partySize > 1 ? [eliteEnemy(w, L + 1), normalEnemy(w, Math.max(1, L - 1))] : [eliteEnemy(w, L)];
   else {
     const size = Math.max(1, partySize);
@@ -381,7 +558,7 @@ function makeFoes(w, node, partySize) {
     const pv = node.foe;
     foes = Array.from({ length:n }, (_, i) => pv && i === 0 ? normalEnemy(w, L, pv.el, pv.role)
       : normalEnemy(w, L, pv && Math.random() < 0.6 ? pv.el : pick(WORLDS[w].els)));
-    if (REALM === 1) foes.forEach(f => { if (Math.random() < FOE_FUSE) fuseFoe(f, w); });   // Realm 2 brings dual-element enemies
+    if (REALM >= 1) foes.forEach(f => { if (Math.random() < FOE_FUSE) fuseFoe(f, w); });   // Realm 2+ brings dual-element enemies
   }
   // Only elite and boss fights get the sharp target picking; ordinary enemies swing a bit more randomly.
   if (node.type === 'boss' || node.type === 'elite') foes.forEach(e => e.smart = true);
@@ -527,6 +704,7 @@ function battleStart(team, foes, node) {
     if (u.pas === 'champion') u.taunt = 1;
     if (u.pas === 'defender') alive(team).forEach(o => { stage(o, 'sDef', 1); stage(o, 'sSDef', 1); o.defN = (o.defN || 0) + 1; o.defT = 3; });
   });
+  foes.forEach(u => { if (u.heat) u.heat.team = team; });   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
     u._fs = false; u._hm = false; u._oc = false;
@@ -535,6 +713,19 @@ function battleStart(team, foes, node) {
   }));
 }
 
+// Mr. President's Executive Order: a random rule that hurts your side or helps his.
+const DECREES = [
+  { n:'Mandatory Nap Time', d:'every slime loses 30 STA', f:(a, al, fo) => fo.forEach(u => { u.sta = Math.max(0, u.sta - 30); }) },
+  { n:'National Speed Limit', d:'every slime is slowed', f:(a, al, fo) => fo.forEach(u => stage(u, 'sSpd', -1)) },
+  { n:'Tax Cuts (For Him)', d:'his side gains +25% OFF', f:(a, al) => al.forEach(u => stage(u, 'sOff', 1)) },
+  { n:'Security Detail', d:'his side gains a 10% shield', f:(a, al) => al.forEach(u => { u.shield += Math.round(u.max * 0.1); }) }
+];
+function decree(a, m, allies, foes, L) {
+  a.sta -= m.s; const d = pick(DECREES);
+  d.f(a, alive(allies), alive(foes).filter(u => !u.abducted));
+  L.push(`${nm(a)} signs an Executive Order: "${d.n}"! (${d.d})`);
+  fx({ u:a, k:'name', t:d.n, el:'light', snd:'buff' }); fx({ u:a, k:'buff', t:'EXECUTIVE ORDER' });
+}
 function act(a, m, target, allies, foes, L) {
   const canEnc = !a.stun && m && m.s <= a.sta;
   const r0 = act0(a, m, target, allies, foes, L);
@@ -547,6 +738,7 @@ function act(a, m, target, allies, foes, L) {
 }
 function act0(a, m, target, allies, foes, L) {
   if (a._oc) { a._oc = false; stage(a, 'sSpd', -1); }
+  if (a.abducted) { L.push(`${nm(a)} is still up in the saucer!`); fx({ u:a, k:'name', t:'Abducted!', el:'psychic', snd:'status' }); return; }
   if (a.stun) { a.stun = 0; L.push(`${nm(a)} is stunned and can't move!`); fx({ u:a, k:'name', t:'Stunned!', el:'lightning', snd:'status' }); return; }
   if (a.confuse && Math.random() < 0.4) {
     const v = calcDmg(a, a, { pow:30 }, 1, false); a.hp -= v; a.hit = true;
@@ -575,6 +767,16 @@ function act0(a, m, target, allies, foes, L) {
     L.push(`${nm(a)} used Retcon! "That never happened." Your boosts and shields are erased, and his side's ailments vanish.`);
     fx({ u:a, k:'name', t:'RETCON', el:'psychic', snd:'buff' }); return;
   }
+  if (m.decree) return decree(a, m, allies, foes, L);
+  if (m.fizzle && Math.random() < m.fizzle) {   // Dark Saber's cheap saber: sometimes it just turns off
+    a.sta -= m.s; const v = calcDmg(a, a, { pow:20 }, 1, false); a.hp = Math.max(1, a.hp - v); a.hit = true;
+    L.push(`${nm(a)} swings ${m.n}... it flickers out and he hits himself for ${v}!`);
+    fx({ u:a, k:'name', t:'Fizzle!', el:'dark', snd:'weak' }); fx({ u:a, k:'dmg', v, el:'dark', small:true }); return;
+  }
+  if (m.rainbow) {   // Arabella: each arrow takes the next color; the move shows the color coming up
+    const seq = m.rainbow, i = (a.rb || 0) % seq.length; a.rb = i + 1;
+    m = { ...m, el:seq[i] }; const src = !IN_SIM && a.moves.find(x => x.n === m.n); if (src) src.el = seq[(i + 1) % seq.length];
+  }
   m = effMove(a, m);
   a.counter = null;   // a counter stance lasts until your next action
   if (m.d4) { const r = 1 + Math.floor(Math.random() * 4); m = { ...m, hits:r + (a.pas === 'hands' && r > 1 ? 1 : 0) }; L.push(`${nm(a)} rolls a D4... it's a ${r}!`); }
@@ -582,6 +784,7 @@ function act0(a, m, target, allies, foes, L) {
   const tg = resolveTargets(a, m, target, allies, foes);
   if (!tg.length) { if (m.t === 'fallen') { L.push(`${nm(a)} tried ${m.n}, but nobody is down.`); } return; }
   a.sta -= m.s;
+  if (m.rang && tg[0]) a.rang = { t:1, tgt:tg[0], pow:m.rang, el:m.el, cat:m.cat, n:m.n, team:foes };   // comes back at the end of the round
   let msg = `${nm(a)} used ${m.n}!`, total = 0;
   if (m.hpCost) { const c = Math.round(a.max * m.hpCost); a.hp = Math.max(1, a.hp - c); msg += ` (paid ${c} HP)`; fx({ u:a, k:'dmg', v:c, el:'dark', small:true }); }
   fx({ u:a, k:'name', t:m.n, el:m.el, snd:m.el });
@@ -591,6 +794,7 @@ function act0(a, m, target, allies, foes, L) {
     const parts = [];
     for (const d of tg) {
       const fl = [];
+      if (d.abducted) { parts.push(`${nm(d)} is out of reach`); continue; }
       if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; fl.push('burned'); }
       if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; fl.push('poisoned'); }
       if (m.stun && Math.random() < ch(a, d, m.stun, 'stun') && !d.stun) { d.stun = 1; fl.push('stunned'); }
@@ -604,6 +808,7 @@ function act0(a, m, target, allies, foes, L) {
       if (m.dispel && dispel(d)) fl.push('buffs removed');
       if (m.bomb) { d.bomb = { ...m.bomb, el:m.el, owner:a, t:1, team:foes }; fl.push('bomb planted'); }
       if (m.spread) fl.push(...spreadDebuffs(d, foes));
+      if (m.abduct && !d.abducted && foes.filter(u => u.hp > 0 && !u.abducted).length > 1) { d.abducted = m.abduct; d.bomb = null; fl.push('beamed up'); }
       fx({ u:d, k:'num', t:(fl.join(' ') || 'missed').toUpperCase(), c:'#d17fe8', burst:m.el, snd:fl.length ? 'status' : 'weak' });
       parts.push(`${nm(d)} ${fl.join(', ') || 'shrugs it off'}`);
     }
@@ -616,6 +821,7 @@ function act0(a, m, target, allies, foes, L) {
       const d = seq[si];
       if (m.chain && si + 1 < m.chain) { const nx = alive(foes); if (nx.length) seq.push(pick(nx)); }
       if (d.hp <= 0) continue;
+      if (d.abducted) { parts.push(`${nm(d)} is up in the saucer, out of reach`); fx({ u:d, k:'num', t:'OUT OF REACH', c:'#d17fe8' }); continue; }
       const eff = effVs(m.el, d), multi = (m.hits || 1) > 1, hp0 = Math.max(0, d.hp); let dealt = 0, crits = 0, misses = 0, fl = [], thorn = 0, firstFx = true, drained = 0;
       if (m.detonate) {          // cash in remaining burn/poison as instant damage
         const left = (d.burn || 0) + (d.poison || 0);
@@ -774,7 +980,7 @@ function endRound(x, L) {
   }
   if (x.bomb && --x.bomb.t <= 0) {
     const b = x.bomb; x.bomb = null; const hit = [];
-    alive(b.team).forEach(o => {
+    alive(b.team).filter(o => !o.abducted).forEach(o => {
       let v = calcDmg(b.owner, o, { pow:b.pow }, effVs(b.el, o), false);
       const ab = Math.min(o.shield, v); o.shield -= ab; v -= ab; o.hp -= v; o.hit = true;
       if (b.burn && Math.random() < b.burn && !o.burn) o.burn = 3;
@@ -782,6 +988,18 @@ function endRound(x, L) {
       fx({ u:o, k:'dmg', v, el:b.el, ko:o.hp <= 0, snd:'crit' }); hit.push(`${nm(o)} -${v}${o.hp <= 0 ? ' KO' : ''}`);
     });
     if (hit.length) L.push(`BOOM! The bomb explodes: ${hit.join(', ')}.`);
+  }
+  if (x.abducted > 0 && --x.abducted <= 0) { x.abducted = 0; L.push(`${nm(x)} is dropped back onto the Moon!`); fx({ u:x, k:'num', t:'RETURNED', c:'#d17fe8' }); }
+  if (x.rang && --x.rang.t <= 0) {   // Boomer Rang: the boomerang comes back for a second hit
+    const r = x.rang; x.rang = null;
+    const d = r.tgt && r.tgt.hp > 0 && !r.tgt.abducted ? r.tgt : pick(alive(r.team).filter(o => !o.abducted));
+    if (x.hp > 0 && d) { let v = calcDmg(x, d, { pow:r.pow, cat:r.cat }, effVs(r.el, d), false); const ab = Math.min(d.shield, v); d.shield -= ab; v -= ab; d.hp -= v; d.hit = true;
+      L.push(`...and the ${r.n} comes back! ${nm(d)} -${v}${d.hp <= 0 ? ' KO' : ''}.`); fx({ u:d, k:'dmg', v, el:r.el, ko:d.hp <= 0, snd:'hit' }); }
+  }
+  if (x.heat && x.hp > 0) {   // the Sun: every round it burns a little hotter, for everyone on your side
+    const H = x.heat; H.n++; const pct = Math.min(H.max, H.step * H.n), hit = [];
+    alive(H.team || []).filter(o => !o.abducted).forEach(o => { const v = Math.max(1, Math.round(o.max * pct)); o.hp -= v; o.hit = true; hit.push(`${nm(o)} -${v}${o.hp <= 0 ? ' KO' : ''}`); fx({ u:o, k:'dmg', v, el:'fire', small:true, ko:o.hp <= 0, snd:'fire' }); });
+    if (hit.length) L.push(`The heat rises (${Math.round(pct * 100)}% a round): ${hit.join(', ')}.`);
   }
   if (x.hp <= 0) return;
   if (x.defT > 0 && --x.defT <= 0) { x.sDef = Math.max(-6, x.sDef - x.defN); x.sSDef = Math.max(-6, x.sSDef - x.defN); x.defN = 0; }
@@ -938,7 +1156,9 @@ function cloneBattle(allies, foes) {
   allies.forEach(u => A2.push(cp(u))); foes.forEach(u => F2.push(cp(u)));
   const arr = t => t === allies ? A2 : t === foes ? F2 : t ? t.map(x => map.get(x) || x) : t;
   map.forEach(c => { if (c.guardBy) c.guardBy = map.get(c.guardBy) || null; if (c.teamRef) c.teamRef = arr(c.teamRef);
-    if (c.bomb) c.bomb = { ...c.bomb, owner:map.get(c.bomb.owner) || c.bomb.owner, team:arr(c.bomb.team) }; });
+    if (c.bomb) c.bomb = { ...c.bomb, owner:map.get(c.bomb.owner) || c.bomb.owner, team:arr(c.bomb.team) };
+    if (c.rang) c.rang = { ...c.rang, tgt:map.get(c.rang.tgt) || c.rang.tgt, team:arr(c.rang.team) };
+    if (c.heat) c.heat = { ...c.heat, team:arr(c.heat.team) }; });
   return { A2, F2, map };
 }
 // Board value from one side's view: living units weighted by how hard they hit, scaled by remaining HP; disabled units count less.
@@ -980,7 +1200,8 @@ function planFor1(a, allies, foes, round = 1, noise = 0.12) {
     if (!a.locked && (has(a, 'hat') || has(a, 'badge')) && !(m.pow > 0) && m.t !== 'fallen') continue;   // don't lock into a non-attack
     const taunters = alive(foes).filter(u => u.taunt > 0);
     const hunt = a.hunter && !taunters.length ? [alive(foes).reduce((x, y) => y.off * stMul(y.sOff || 0) > x.off * stMul(x.sOff || 0) ? y : x)] : null;   // goes for your strongest hitter
-    const tgs = m.t === 'foe' ? (taunters.length ? taunters : hunt || alive(foes)) : m.t === 'ally' ? alive(allies).filter(u => !m.guard || u !== a) : m.t === 'fallen' ? allies.filter(u => u.hp <= 0) : [null];
+    const reach = alive(foes).filter(u => !u.abducted);
+    const tgs = m.t === 'foe' ? (taunters.length ? taunters : hunt || (reach.length ? reach : alive(foes))) : m.t === 'ally' ? alive(allies).filter(u => !m.guard || u !== a) : m.t === 'fallen' ? allies.filter(u => u.hp <= 0) : [null];
     for (const t of tgs) opts.push({ m, target:t, s:scoreMove(a, m, t, allies, foes, round) * (1 + (Math.random() - 0.5) * noise) * (a.favor && t && t.cls === a.favor && m.t === 'ally' ? 2.5 : 1) });
   }
   opts.sort((x, y) => y.s - x.s);
@@ -1011,13 +1232,14 @@ const NODE_ODDS = [['fight', 0.32], ['elite', 0.12], ['recruit', 0.10], ['camp',
 // Item tile offers: consumables and held items mixed.
 const itemOffers = () => { const pool = [...USE_ITEMS, ...USE_ITEMS, ...HOLD_ITEMS], out = []; while (out.length < ITEM_CHOICES) { const k = pick(pool); if (!out.includes(k)) out.push(k); } return out; };
 function rollType(f) {
-  const odds = REALM === 1 ? [['fuse', 0.05], ...NODE_ODDS] : NODE_ODDS;
+  const odds = REALM >= 1 ? [['fuse', 0.05], ...NODE_ODDS] : NODE_ODDS;
   let r = Math.random() * odds.reduce((s, o) => s + o[1], 0), t = 'fight';
   for (const [k, p] of odds) { if (r < p) { t = k; break; } r -= p; }
   return t === 'elite' && f < 2 ? 'fight' : t;
 }
 function rollFoe(w) { return { el:pick(WORLDS[w].els), role:pick(FOE_ROLES) }; }
 function genMap(w) {
+  if (isMoon(w)) return moonMap();
   const rows = MAP_ROWS.map((n, f) => Array.from({ length:n }, (_, c) => ({ f, c, type:'fight', next:[], visited:false })));
   const last = FLOORS - 1;
   rows.forEach((row, f) => row.forEach(n => {
@@ -1028,8 +1250,8 @@ function genMap(w) {
     if (n.type === 'fight') n.foe = rollFoe(w);
   }));
   if (!rows[1].some(n => n.type === 'recruit') && !rows[2].some(n => n.type === 'recruit')) { const n = pick(rows[2]); n.type = 'recruit'; delete n.foe; }
-  // Realm 2 maps always have at least one shrine.
-  if (REALM === 1 && !rows.some(r => r.some(n => n.type === 'fuse'))) { const n = pick(rows.slice(2, last - 1).flat().filter(n => n.type !== 'recruit')); n.type = 'fuse'; delete n.foe; }
+  // Realm 2+ maps always have at least one shrine.
+  if (REALM >= 1 && !rows.some(r => r.some(n => n.type === 'fuse'))) { const n = pick(rows.slice(2, last - 1).flat().filter(n => n.type !== 'recruit')); n.type = 'fuse'; delete n.foe; }
   for (let f = 0; f < last; f++) {
     const a = rows[f].length, b = rows[f + 1].length;
     rows[f].forEach((n, i) => {
@@ -1037,6 +1259,15 @@ function genMap(w) {
       n.next = [...new Set(idx.filter(j => j >= 0 && j < b))].map(j => rows[f + 1][j]);
     });
   }
+  return rows;
+}
+// The Moon: a straight walk across the surface. Landing (full heal on arrival), the Elite 4 back to back,
+// one Moon Base camp, then the Sun. No other tiles: it's there for the view.
+function moonMap() {
+  const types = ['start', 'boss', 'boss', 'boss', 'boss', 'camp', 'boss'];
+  const rows = types.map((type, f) => [{ f, c:0, type, next:[], visited:false }]);
+  let gi = 0; rows.forEach(r => { if (r[0].type === 'boss') r[0].gi = gi++; });
+  for (let f = 0; f < rows.length - 1; f++) rows[f][0].next = [rows[f + 1][0]];
   return rows;
 }
 // What a mystery tile turns into when you step on it.
@@ -1136,7 +1367,7 @@ function recruitOffers(team) {
   while (out.length < RECRUIT_CHOICES) {
     let r = Math.random() * combos.reduce((s, c) => s + (out.some(o => o.el === c.el && o.cls === c.cls) ? 0 : c.w), 0), c = null;
     for (const x of combos) { if (out.some(o => o.el === x.el && o.cls === x.cls)) continue; c = x; r -= x.w; if (r <= 0) break; }
-    if (REALM === 1 && Math.random() < WILD_FUSE && !out.some(o => o.el2)) { out.push(wildFused(team.concat(out))); continue; }
+    if (REALM >= 1 && Math.random() < WILD_FUSE && !out.some(o => o.el2)) { out.push(wildFused(team.concat(out))); continue; }
     out.push(giveName(newSlime(c.el, c.cls, avgLvl(team), true), team.concat(out)));
   }
   return out;

@@ -825,12 +825,27 @@ const REALM_WORLDS = [[
     { name:'Candy Kingdom',   bg:'#2a1424', els:['life','light','water','fire','earth','psychic'] },
     { name:'Wasteland',       bg:'#241810', els:['fire','earth','dark','lightning','life'] },
     { name:'The Fourth Wall', bg:'#12121a', els:['light','dark','psychic','light','dark','psychic'] }
+  ],
+  // Realm 3: World Domination. The slimes take over the Earth, one place at a time, then the Moon.
+  // The Moon has no normal fights: a full heal, the Elite 4 back to back, one heal, then the Sun (see MOON_W).
+  [
+    { name:'Japan',            bg:'#1c1020', els:['earth','water','fire','psychic','lightning'] },
+    { name:'United Kingdom',   bg:'#141a22', els:['water','dark','earth','light','life'] },
+    { name:'Africa',           bg:'#24180c', els:['earth','fire','life','lightning','light'] },
+    { name:'Australia',        bg:'#2a140c', els:['fire','earth','dark','life','water'] },
+    { name:'Antarctica',       bg:'#0e1c2a', els:['water','water','light','earth','psychic'] },
+    { name:'Tropical Forests', bg:'#0c2014', els:['life','life','water','psychic','lightning','dark'] },
+    { name:'USA',              bg:'#10142a', els:['lightning','fire','earth','light','water'] },
+    { name:'The Moon',         bg:'#0a0a14', els:['light','dark','psychic'] }
   ]];
 // The realm you are playing: WORLDS and BOSS_INFO point at it (see setRealm). Realm 2 needs Realm 1 cleared.
 const REALM_DEF = [
   { name:'Realm 1: The Classic Quest', blurb:'Eight worlds of fantasy heroes.', foeHp:1, foeOff:1 },
-  { name:'Realm 2: Genre Hop',         blurb:'Eight worlds, one for every kind of story.', foeHp:1.5, foeOff:1.3 }
+  { name:'Realm 2: Genre Hop',         blurb:'Eight worlds, one for every kind of story.', foeHp:1.5, foeOff:1.3 },
+  { name:'Realm 3: World Domination',  blurb:'The slimes take over the Earth... then the Moon.', foeHp:1.6, foeOff:1.35 }
 ];
+const MOON_W = 7;   // Realm 3's last world: the gauntlet (see genMap and the Moon bosses)
+const isMoon = (w = 0) => REALM === 2 && w === MOON_W;
 let REALM = 0, WORLDS = REALM_WORLDS[0];
 const FLOORS = 9;   // rows per world, matching MAP_ROWS (the last row is the boss)
 // Enemy level for a world + floor. Matches the party's pace with fixed level rewards
@@ -909,6 +924,38 @@ const REALM2_BOSSES = [
   { name:'The Janitor',     spr:'b_janitor',  els:['life', 'earth'],              intro:'THE JANITOR leans on a very alive mop. "Somebody has to clean up this mess. Looks like it\'s you."', outro:'The Janitor shrugs. "Another spill. Story of my life."' },
   { name:'The Narrator',    spr:'b_narrator', els:['light', 'psychic', 'dark'],   intro:'THE NARRATOR clears his throat. "And so, the heroes arrived at the final page. Sadly, it was not theirs."', outro:'The Narrator closes the book. "...Well. That was not in the script."' }
 ];
+// Realm 3: one boss per country; the Moon's entry (index 7) is the Sun, and the Elite 4 come before it.
+const REALM3_BOSSES = [
+  { name:'The Protagonist?', spr:'b_hero_fallen', els:['earth'], intro:'Is that... THE PROTAGONIST? He\'s put on weight. His armor won\'t close. He slurps his ramen and sighs. "I used to be the main character, you know."',
+    outro:'The Protagonist puts down his chopsticks. "...Maybe I should start training again." He waddles off toward a gym.' },
+  { name:'The Queen', spr:'b_queen', els:['light'], intro:'THE QUEEN rests a sword taller than she is on her shoulder. Two demon corgis growl at her feet. "One does not surrender one\'s kingdom to puddings."',
+    outro:'The Queen lowers her sword. "Fine. Have it. One is late for tea anyway." The corgis keep growling.' },
+  { name:'The Lion King', spr:'b_lionking', els:['light', 'earth'], intro:'THE LION KING raises his shield as his clerics begin to chant. "Everything the light touches is MINE. Including you."',
+    outro:'The Lion King kneels. "The circle of life... has a slime in it now."' },
+  { name:'Boomer Rang', spr:'b_boomer', els:['fire'], intro:'BOOMER RANG twirls a boomerang the size of a canoe. "G\'day! Mind the dynamite, mate. And duck. Always duck."',
+    outro:'Boomer Rang throws his boomerang one last time. It doesn\'t come back. "...Strewth."' },
+  { name:'Frost Queen', spr:'b_frostqueen', els:['water'], intro:'The FROST QUEEN steps out of the blizzard, her Snow Monster looming behind her. "Nothing moves here unless I allow it."',
+    outro:'The Frost Queen shivers for the first time in centuries. "...Is it warm in here?"' },
+  { name:'Arabella Rain-bow', spr:'b_arabella', els:['life'], intro:'ARABELLA RAIN-BOW draws a bow made of pure rainbow. "Every color, every arrow. One of them is just for you."',
+    outro:'Arabella unstrings her bow. "A pot of gold? No. A pot of slime." She smiles and fades into the canopy.' },
+  { name:'Mr. President', spr:'b_president', els:['lightning', 'light'], intro:'MR. PRESIDENT steps up to the podium, Secret Service at his side. "My fellow Earthlings. I have signed an executive order: no slimes."',
+    outro:'Mr. President shakes your gooey hand. "Congratulations. You are now the President. Good luck with the paperwork."' },
+  { name:'The Sun', spr:'b_sun', els:['fire', 'light'], intro:'Beyond the Moon, THE SUN turns its burning face toward you. "SMALL THINGS. YOU HAVE TAKEN THE EARTH. YOU WILL NOT TAKE THE SKY."',
+    outro:'The Sun dims... and for the first time in five billion years, it sets on its own. The slimes rule everything, from the Earth to the stars.' }
+];
+// The Moon's Elite 4, fought back to back before the Sun.
+const MOON_ELITE = [
+  { name:'Nellie Strongarms', spr:'b_nellie', els:['light'], intro:'NELLIE STRONGARMS cracks her knuckles in zero gravity. "Moon gravity is one sixth. My punches are not."',
+    outro:'Nellie floats away, laughing. "Good workout! Next one\'s tougher, though."' },
+  { name:'The Protagonist', spr:'b_hero_redeemed', els:['earth', 'light'], intro:'THE PROTAGONIST is back: lean, shredded, sword blazing. Claire Rick and Cantmiss stand beside him. "I found myself again. And I brought my friends."',
+    outro:'The Protagonist smiles. "You were the main characters all along." His friends help him up.' },
+  { name:'Glorb', spr:'b_glorb', els:['psychic', 'dark'], intro:'GLORB lands his saucer and raises a raygun. "GLORB COME IN PEACE. GLORB LEAVE IN PIECES. YOURS."',
+    outro:'Glorb climbs back into his saucer. "GLORB WILL TELL THE MOTHERSHIP. MOTHERSHIP WILL NOT BELIEVE GLORB."' },
+  { name:'Dark Saber', spr:'b_darksaber', els:['dark'], intro:'DARK SABER breathes heavily through a bucket. "I am your... hold on." He checks a note card. "I am your FATHER. Probably."',
+    outro:'Dark Saber\'s bucket falls off. "Don\'t look at me!" He runs away, cape catching on everything.' }
+];
 let BOSS_INFO = REALM1_BOSSES;
-function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES][r]; }
+function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES, REALM3_BOSSES][r]; }
+// Which boss a boss tile holds: the Moon's tiles carry an Elite 4 index (gi 0..3); every other boss tile is the world's boss.
+const bossInfoOf = (w, node) => node && node.gi != null && node.gi < MOON_ELITE.length ? MOON_ELITE[node.gi] : BOSS_INFO[w];
 
