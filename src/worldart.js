@@ -56,6 +56,48 @@ function worldArt(w) {
     for (let i = 0; i < 16; i++) { const x = ri(Wd), y = ri(Ht), c = ['#e0457a', '#b388ff', '#ff8c42'][ri(3)];
       rect(x - 2, y, 5, 2, c); px(x - 1, y, '#ffffff'); px(x + 1, y + 1, '#ffffff'); rect(x, y + 2, 1, 2, '#f0e8d0'); }   // mushrooms
     for (let i = 0; i < 60; i++) px(ri(Wd), ri(Ht), ['#fff3a0', '#c8f0ff', '#ffb0e0'][ri(3)]);   // sparkles
+  } else if (w >= 16) {                          // Realm 3: World Domination (one look per place)
+    const k = w - 16;
+    if (k === 0) {                               // Japan: blossoms, a torii gate, Fuji on the horizon
+      fill('#6aa85a'); speckle(['#5a984a', '#7ab86a', '#4a8a3e'], 700); rect(0, 0, Wd, 22, '#bfe0f8');
+      for (let y = 0; y < 14; y++) rect(40 - y * 2, 8 + y, y * 4 + 1, 1, y < 4 ? '#ffffff' : '#7a86a8');
+      rect(26, 40, 28, 3, '#d8342c'); rect(24, 38, 32, 2, '#2a1a1a'); rect(28, 46, 24, 2, '#d8342c'); rect(30, 40, 3, 20, '#d8342c'); rect(47, 40, 3, 20, '#d8342c');
+      for (let i = 0; i < 9; i++) { const x = ri(Wd), y = 26 + ri(Ht - 30); rect(x, y + 2, 1, 3, '#5a3a22'); blob(x, y, 3, '#f4a8c8'); blob(x + 1, y - 1, 2, '#ffd0e4'); }
+      for (let i = 0; i < 50; i++) px(ri(Wd), ri(Ht), '#ffc0dc');   // petals
+    } else if (k === 1) {                        // United Kingdom: rainy fields, stone walls, a castle
+      fill('#4e7a4a'); speckle(['#466e42', '#56844e', '#3e6038'], 700); rect(0, 0, Wd, 20, '#8a96a4');
+      for (let i = 0; i < 4; i++) { const y = 30 + i * 16; for (let x = 0; x < Wd; x += 2) px(x, y + (x % 6 === 0 ? 1 : 0), '#9a9a90'); }
+      rect(50, 6, 22, 16, '#7a7a80'); for (let x = 50; x < 72; x += 4) rect(x, 3, 2, 3, '#7a7a80'); rect(58, 14, 5, 8, '#3a3a40'); rect(46, 2, 5, 20, '#6a6a70'); rect(45, 0, 7, 3, '#6a6a70');
+      for (let i = 0; i < 140; i++) { const x = ri(Wd), y = ri(Ht); px(x, y, 'rgba(200,215,235,0.55)'); px(x + 1, y + 1, 'rgba(200,215,235,0.35)'); }   // rain
+    } else if (k === 2) {                        // Africa: savanna, acacias, a huge sun
+      fill('#d8b05a'); speckle(['#c8a04a', '#e8c06a', '#b8903a'], 800); rect(0, 0, Wd, 24, '#f2a24a'); blob(40, 20, 12, '#ffd27a'); blob(40, 20, 9, '#fff0b0'); rect(0, 22, Wd, 3, '#c8903a');
+      for (let i = 0; i < 6; i++) { const x = 6 + ri(Wd - 12), y = 32 + ri(Ht - 40); rect(x, y, 1, 7, '#4a2c1a'); rect(x - 6, y - 1, 13, 2, '#3a5a2a'); rect(x - 4, y - 2, 9, 1, '#4a6e32'); }
+      for (let i = 0; i < 60; i++) { const x = ri(Wd), y = 26 + ri(Ht - 26); px(x, y, '#a8802a'); px(x, y - 1, '#c89a3a'); }   // grass tufts
+    } else if (k === 3) {                        // Australia: red dirt, Uluru, spinifex
+      fill('#b8502a'); speckle(['#a8441e', '#c8603a', '#983a1a'], 800); rect(0, 0, Wd, 22, '#f2b06a');
+      for (let y = 0; y < 10; y++) rect(18 - y, 12 + y, 44 + y * 2, 1, y % 3 ? '#c84a20' : '#a83a18');   // the big rock
+      for (let i = 0; i < 16; i++) { const x = ri(Wd), y = 26 + ri(Ht - 28); px(x, y, '#9aa04a'); px(x - 1, y + 1, '#8a904a'); px(x + 1, y + 1, '#8a904a'); }
+      for (let i = 0; i < 5; i++) { const x = ri(Wd - 6), y = 30 + ri(Ht - 40); rect(x, y, 4, 1, '#e8d8b8'); px(x + 4, y - 1, '#e8d8b8'); }   // bones
+    } else if (k === 4) {                        // Antarctica: snow, cracked ice, penguins
+      fill('#e8f2fa'); speckle(['#d8e8f4', '#ffffff', '#c8dcec'], 900);
+      for (let i = 0; i < 5; i++) { let x = ri(Wd), y = ri(Ht); for (let j = 0; j < 14; j++) { px(x, y, '#7ab0d8'); x += ri(3) - 1; y++; } }
+      for (let i = 0; i < 7; i++) { const x = ri(Wd - 4), y = ri(Ht - 6); rect(x, y, 3, 5, '#1a1a24'); rect(x + 1, y + 1, 1, 3, '#ffffff'); px(x + 1, y + 5, '#f9a03a'); }
+      for (let i = 0; i < 4; i++) blob(ri(Wd), ri(Ht), 5, '#9ad0f0');
+    } else if (k === 5) {                        // Tropical Forests: dense canopy, river, flowers
+      fill('#1e6a32'); speckle(['#186028', '#2a7e3e', '#0e4a1e'], 1000); river('#3ab0c8', '#2a8aa8', 26 + ri(25), 1.6);
+      for (let i = 0; i < 22; i++) tree(ri(Wd), ri(Ht), '#3aa04a', '#1a6a2a', '#4a2a12');
+      for (let i = 0; i < 26; i++) { const x = ri(Wd), y = ri(Ht); px(x, y, ['#ff4a7a', '#ffd23a', '#ff8c2a', '#c86aff'][ri(4)]); }
+    } else if (k === 6) {                        // USA: a highway, a skyline, stars and stripes in the sky
+      fill('#4a7a3a'); speckle(['#427034', '#548444'], 600);
+      for (let y = 0; y < 22; y++) rect(0, y, Wd, 1, (y >> 1) % 2 ? '#e8e8f0' : '#c8343c'); rect(0, 0, 30, 12, '#2a3a8a'); for (let i = 0; i < 12; i++) px(2 + (i % 6) * 5, 2 + (i / 6 | 0) * 5, '#ffffff');
+      for (let i = 0; i < 8; i++) { const x = 32 + i * 6, h = 6 + ri(14); rect(x, 22 - h, 5, h, '#3a3a4a'); }
+      rect(34, 22, 12, Ht - 22, '#3a3a40'); for (let y = 24; y < Ht; y += 6) rect(39, y, 2, 3, '#f9c74f');
+    } else {                                     // The Moon: grey dust, craters, Earth in a black sky
+      fill('#8a8a92'); speckle(['#7a7a82', '#9a9aa2', '#6a6a72'], 900); rect(0, 0, Wd, 20, '#05050c'); for (let i = 0; i < 40; i++) px(ri(Wd), ri(19), '#ffffff');
+      blob(62, 9, 6, '#2a6ad8'); blob(60, 8, 3, '#4ab04a'); px(64, 11, '#ffffff'); rect(0, 19, Wd, 2, '#6a6a72');
+      for (let i = 0; i < 12; i++) { const x = ri(Wd), y = 26 + ri(Ht - 30), r = 2 + ri(5); blob(x, y, r, '#6a6a72'); blob(x + 1, y + 1, Math.max(1, r - 1), '#7e7e86'); }
+      for (let i = 0; i < 3; i++) { const x = 8 + ri(Wd - 16), y = 30 + ri(Ht - 40); rect(x, y, 1, 6, '#c8c8d0'); rect(x + 1, y, 4, 3, i ? '#e8e8f0' : '#c8343c'); }   // flags
+    }
   } else if (w >= 8) {                           // Realm 2: Genre Hop (one look per genre)
     const k = w - 8;
     if (k === 0) {                               // Space Station

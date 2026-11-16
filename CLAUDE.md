@@ -20,12 +20,15 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 
 ## Map of the code
 - `src/data.js`: elements (EL_STATS, type chart CYC/SPC, effMult/effVs), classes, moves & learnsets, passives (PASSIVES, CLASS_PMOVES Lv25, ELEM_PMOVES Lv45), worlds per realm (REALM_WORLDS, REALM_DEF difficulty), boss story text.
-- `src/engine.js`: units, damage (calcDmg), act/endRound, AI (scoreMove, planFor with 1-round lookahead), enemies, Realm 1 bosses (BOSSES) and Realm 2 bosses (BOSSES2), fusion (fuseSlimes, multiclass names MULTICLASS, element names ELEMENT_COMBO), map generation.
+- `src/engine.js`: units, damage (calcDmg), act/endRound, AI (scoreMove, planFor with 1-round lookahead), enemies, Realm 1 bosses (BOSSES), Realm 2 bosses (BOSSES2), Realm 3 bosses (BOSSES3, Moon Elite 4 MOON_FIGHTS, moonMap), fusion (fuseSlimes, multiclass names MULTICLASS, element names ELEMENT_COMBO), map generation.
 - `src/meta.js`: saved progress (stars, shared points, realm clears), save/resume run.
 - `src/ui.js`: every screen (starter pick, map, battle, recruit, shrine, bag/pocket, inspect popup).
-- `src/bossart.js`: Realm 2 boss art (base64 PNG).
+- `src/bossart.js`: Realm 2 boss art (base64 PNG). `src/bossart3.js`: Realm 3 boss art (source PNGs in `art/realm3/`).
 
 ## Systems in short
-- Realms: Realm 1 (Classic Quest), Realm 2 (Genre Hop, unlocked by clearing Realm 1; +50% enemy HP, +30% OFF).
+- Realms: Realm 1 (Classic Quest), Realm 2 (Genre Hop, unlocked by clearing Realm 1; +50% enemy HP, +30% OFF), Realm 3 (World Domination, unlocked by clearing Realm 2; +60% HP, +35% OFF).
+- Realm 3 target: clearable by a 2-star team or a 3-star carry (sim: `R=2 SB=1.2 node tools/sim.js 300 mixed` about 25% clear, same as Realm 2 at 2 stars).
+- The Moon (Realm 3 world 8): full heal on arrival, Elite 4 back to back (tiles carry `gi` 0-3), one camp, then the Sun (gi 4). Only the usual after-fight revive/15% heal between Elite fights.
+- Realm 3 boss tricks: `rang` (boomerang returns at round end), `rainbow` (move cycles elements), `abduct` (target can't act or be hit), `decree` (Executive Order), `fizzle` (move may fail), `heat` (Sun burns your side more each round), `art`/`small` (sidekick art size).
 - Stars: 10 points per star per slime, +1 star per realm cleared, max 10 points in one stat; a slime's own points spend first, shared pool last (refunded first).
 - Fusion (Realm 2+, starters after clearing Realm 2): multiclass with both elements and classes, averaged stats, random base parent gives moves, the other parent's moves are offered to learn. Pocket holds one slime essence for fusing.

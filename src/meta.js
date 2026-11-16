@@ -1,7 +1,7 @@
 /* ================= progress: stars, milestones, saved run ================= */
 // Stars are earned per element+class combo. Each combo can hold STAR_STEP points per unlocked star, up to 10 in any one stat.
 // Points come from one-time milestones (own points) and from first-time boss kills (a shared pool you spend on any combo).
-const REALMS = 2;                       // realms that exist so far; each first-time realm clear unlocks one more star
+const REALMS = 3;                       // realms that exist so far; each first-time realm clear unlocks one more star
 const MILESTONES = [                    // boss kills that credit every combo in your party, once each
   { w:2, pts:2, label:'World 3 boss' }, { w:4, pts:3, label:'World 5 boss' }, { w:7, pts:5, label:'Clear the realm' }];
 const comboKey = (el, cls) => el + '_' + cls;

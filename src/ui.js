@@ -279,8 +279,9 @@ function showMap() {
   const reach = G.pos ? G.pos.next : G.map[0];
   const W = 300, H = 470, top = 30, bot = H - 30;
   const GAP = { 1:0, 2:116, 3:80, 4:61 };
-  const px = n => W / 2 + (n.c - (G.map[n.f].length - 1) / 2) * GAP[G.map[n.f].length];
-  const py = n => bot - n.f * ((bot - top) / (FLOORS - 1));
+  const MOON_X = [0, -60, 45, -45, 60, -20, 0];   // the Moon's single path wanders across the surface
+  const px = n => W / 2 + (isMoon(G.w) ? MOON_X[n.f] || 0 : (n.c - (G.map[n.f].length - 1) / 2) * GAP[G.map[n.f].length]);
+  const py = n => bot - n.f * ((bot - top) / (G.map.length - 1));
   let lines = '', nodes = '';
   G.map.forEach(row => row.forEach(n => n.next.forEach(m => {
     const hot = G.pos === n;
@@ -297,6 +298,9 @@ function showMap() {
       art = `<image href="${foeURL(n.foe.role, n.foe.el)}" x="${x - is / 2}" y="${y - is / 2 - 2}" width="${is}" height="${is}" style="image-rendering:pixelated" opacity="${op}"/>
         <rect x="${x + s - ss + 1}" y="${y + s - ss + 1}" width="${ss}" height="${ss}" fill="#0e0c18" stroke="#000" stroke-width="1.5"/>
         <image href="${symURL(n.foe.el)}" x="${x + s - ss + 2}" y="${y + s - ss + 2}" width="${ss - 2}" height="${ss - 2}" style="image-rendering:pixelated" opacity="${op}"/>`;
+    } else if (n.type === 'boss' && isMoon(G.w)) {   // the Moon shows who's waiting on each tile
+      const is = s * 2.4, bi = bossInfoOf(G.w, n);
+      art = `<image href="${spriteURL(bi.spr, 4)}" x="${x - is / 2}" y="${y - is / 2}" width="${is}" height="${is}" opacity="${n.visited ? 0.35 : op}"/>`;
     } else if (n.type === 'boss') {
       const is = s * 1.6;
       art = `<image href="${spriteURL('i_skull', 4)}" x="${x - is / 2}" y="${y - is / 2}" width="${is}" height="${is}" style="image-rendering:pixelated" opacity="${op}"/>`;
@@ -310,7 +314,7 @@ function showMap() {
   const nextLv = lvlOf(G.w, reach[0] ? reach[0].f : 0);
   app.innerHTML = `
     <h1>${worldTitle()}</h1>
-    <div class="sub">Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM === 1 ? icon('fuse') + ' fusion shrine · ' : ''}${icon('boss')} boss</div>
+    ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('boss')} boss</div>
     ${partyMini()}
     <div class="row"><button id="bagbtn">${icon('item')} BAG (${G.bag.length})</button><button id="savebtn">SAVE &amp; QUIT</button><button id="forfeitbtn" class="danger">FORFEIT</button></div>
     ${canRerollMap() ? '<div class="row"><button id="rerollmap">REROLL MAP</button></div>' : ''}
@@ -544,7 +548,7 @@ function showItemTile() {
 }
 // Bag: held items can be equipped, unequipped and swapped freely; consumables are used here (never in battle).
 // The pocket (one slime essence) only matters where Fusion Shrines exist: Realm 2.
-const pocketOn = () => REALM === 1 || !!(G && G.essence);
+const pocketOn = () => REALM >= 1 || !!(G && G.essence);
 function showBag(back) {
   app.innerHTML = `
     <h1>BAG</h1>
@@ -639,7 +643,7 @@ function startFight(node) {
   party.forEach(p => { const hp = p.hp; resetStatus(p); p.hp = hp; });
   B = { downed:new Set(), foes:makeFoes(G.w, node, party.length), queue:[], qi:0, cur:null, sel:null, pending:null, busy:false, over:null, log:[], round:0, gains:[] };
   battleStart(party, B.foes, node);
-  B.log.push(node.type === 'boss' ? BOSS_INFO[G.w].intro : `${B.foes.map(e => `Lv${e.lvl} ${e.name}`).join(', ')} ${B.foes.length > 1 ? 'appear' : 'appears'}!`);
+  B.log.push(node.type === 'boss' ? bossInfoOf(G.w, node).intro : `${B.foes.map(e => `Lv${e.lvl} ${e.name}`).join(', ')} ${B.foes.length > 1 ? 'appear' : 'appears'}!`);
   startRound();
 }
 // Turn order: every living unit, fastest first (ties go to your slimes).
@@ -730,7 +734,7 @@ function winFight() {
   noteDowned();
   const t = G.node.type, fl = Math.max(...B.foes.map(e => e.lvl));
   B.over = 'win';
-  if (t === 'boss') G.award = awardBoss(G.w, party);
+  if (t === 'boss') G.award = eliteNode(G.node) ? null : awardBoss(G.w, party);
   G.learnQ = [];
   B.gains = party.map(p => {
     const g = fightRewards(p, fl, t, B.downed.has(p));
@@ -741,10 +745,12 @@ function winFight() {
   setTimeout(() => SFX.play('level'), 900);
   renderBattle();
 }
+const eliteNode = n => !!n && n.gi != null && n.gi < MOON_ELITE.length && isMoon(G.w);
 function afterFight() {
   const t = G.node.type;
   processLearns(() => {
     if (t === 'elite') return showUpgrade('ELITE TREASURE!', showMap);
+    if (t === 'boss' && eliteNode(G.node)) return showUpgrade(`${bossInfoOf(G.w, G.node).name.toUpperCase()} DOWN!`, showMap);   // the Moon: straight on to the next one
     if (t === 'boss') return showUpgrade("HERO'S LOOT!", showWorldClear);
     showMap();
   });
@@ -753,7 +759,7 @@ function afterFight() {
 function awardHTML() {
   const a = G.award; if (!a) return '';
   const lines = [];
-  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter.' : ''}`);
+  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter. <b>Realm 3: World Domination is now open!</b>' : ''}${a.realm === 3 ? ' <b>The slimes rule the Earth, the Moon and the Sun.</b>' : ''}`);
   if (a.shared) lines.push(`+${a.shared} shared star point (first time beating this boss)`);
   a.combos.forEach(c => lines.push(`${c.name}: +${c.pts} star points (${c.label})`));
   return lines.length ? `<div class="award">${lines.map(l => `<div>${l}</div>`).join('')}<small>Spend star points on the starter screen at the start of a run.</small></div>` : '';
@@ -761,15 +767,15 @@ function awardHTML() {
 function showWorldClear() {
   if (G.w >= WORLDS.length - 1) {
     app.innerHTML = `<h1>REALM ${REALM + 1} CLEARED!</h1>${img(unitURL(party[0]), 'big bob')}
-      <div class="sub" style="text-align:center">${BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
+      <div class="sub" style="text-align:center">${BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM === 2 ? '' : REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
       <div class="row" style="margin-top:12px"><button class="primary" id="go">NEW RUN</button></div>`;
     return document.getElementById('go').onclick = renderPick;
   }
-  const next = WORLDS[G.w + 1].name;
+  const next = WORLDS[G.w + 1].name, moon = isMoon(G.w + 1);
   app.innerHTML = `<h1>${WORLDS[G.w].name.toUpperCase()} CLEARED!</h1>${img(spriteURL(BOSS_INFO[G.w].spr, 4), 'bossbig')}
-    <div class="sub" style="text-align:center">${BOSS_INFO[G.w].outro} Your party patches up (50% heal, fallen slimes revive) and heads for the ${next}.</div>${awardHTML()}${partyMini()}
+    <div class="sub" style="text-align:center">${BOSS_INFO[G.w].outro} ${moon ? 'Your party is fully healed for the trip to the Moon. Up there: the Elite 4, back to back, then one rest at the Moon Base before the Sun itself.' : `Your party patches up (50% heal, fallen slimes revive) and heads for the ${next}.`}</div>${awardHTML()}${partyMini()}
     <div class="row" style="margin-top:12px"><button class="primary" id="go">ENTER THE ${next.toUpperCase()}</button></div>`;
-  document.getElementById('go').onclick = () => { campHeal(party, 0.5, 0.5); G.w++; G.map = genMap(G.w); G.pos = G.map[0][0]; G.pos.visited = true; G.node = null; showMap(); };
+  document.getElementById('go').onclick = () => { if (moon) campHeal(party); else campHeal(party, 0.5, 0.5); G.w++; G.map = genMap(G.w); G.pos = G.map[0][0]; G.pos.visited = true; G.node = null; showMap(); };
 }
 
 function statusTags(x) {
@@ -789,6 +795,9 @@ function statusTags(x) {
   if (x.charged) t.push(['CHARGED', '#ffe680']);
   if (x.marked) t.push(['MARK ' + x.marked, '#f94144']);
   if (x.bomb) t.push(['BOMB ' + x.bomb.t, '#ff8c42']);
+  if (x.abducted) t.push(['ABDUCTED ' + x.abducted, '#d17fe8']);
+  if (x.rang) t.push(['BOOMERANG OUT', '#ff8c42']);
+  if (x.heat) t.push([`HEAT ${Math.round(Math.min(x.heat.max, x.heat.step * (x.heat.n + 1)) * 100)}%`, '#f94144']);
   for (const [k, lab] of [['sOff', 'OFF'], ['sDef', 'DEF'], ['sSDef', 'SpD'], ['sSpd', 'SPE']]) if (x[k]) t.push([`${lab}${x[k] > 0 ? '+' : '-'}${Math.abs(x[k]) * 25}%`, x[k] > 0 ? '#2d9a4a' : '#c0392b']);
   return t.map(([s, c]) => `<span class="st" style="background:${c}">${s}</span>`).join('');
 }
@@ -796,10 +805,10 @@ function statusTags(x) {
 function unitCard(u, i) {
   const side = u.side, t = B.pending && B.pending.t;
   const targetable = !B.busy && B.pending && ((t === 'foe' && side === 'E' && u.hp > 0) || (t === 'ally' && side === 'P' && u.hp > 0) || (t === 'fallen' && side === 'P' && u.hp <= 0));
-  const big = u.boss && u.spr && SPR_IMG[u.spr[0][0]];
+  const big = (u.boss || u.art) && !u.small && u.spr && SPR_IMG[u.spr[0][0]];
   const cls = ['card', 'ucard', big ? 'bosscard' : '', u.hp <= 0 ? 'dead' : '', u.hit ? 'hit' : '', B.sel === u || B.cur === u ? 'sel' : '', targetable ? 'targetable' : ''].join(' ');
   return `<div class="${cls}" data-side="${side}" data-i="${i}">
-    ${img(unitURL(u), (big ? 'bossimg ' : u.boss ? 'mid ' : 'xs ') + (u.hp > 0 ? 'bob' : ''), `animation-delay:${i * 0.3}s`)}
+    ${img(unitURL(u), (big ? 'bossimg ' : u.boss || u.small ? 'mid ' : 'xs ') + (u.hp > 0 ? 'bob' : ''), `animation-delay:${i * 0.3}s`)}
     ${big ? '<div class="binfo">' : ''}<div class="nm">${u.name}</div>
     <div class="lv">Lv${u.lvl} ${etags(u)}</div>${passiveOf(u) ? `<div class="pasn">&#9733; ${passiveOf(u).n}</div>` : ''}
     <div class="bar ${side === 'E' ? 'red' : ''}"><i style="width:${Math.max(0, u.hp)/u.max*100}%"></i></div>
@@ -850,7 +859,7 @@ function marquee() {
 function renderBattle() {
   noteDowned();
   const node = G.node;
-  const title = node.type === 'boss' ? 'BOSS' : node.type === 'elite' ? 'ELITE' : 'FIGHT';
+  const title = eliteNode(node) ? 'ELITE 4' : node.type === 'boss' ? 'BOSS' : node.type === 'elite' ? 'ELITE' : 'FIGHT';
   let controls = '';
   if (B.over === 'win') {
     const learnN = G.learnQ.length;
