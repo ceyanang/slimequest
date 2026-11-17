@@ -51,7 +51,7 @@ const avg=a=>(a.reduce((s,x)=>s+x,0)/a.length);
 if(mode==='combo'){   // each element+class combo with two random teammates; SHARD=i/n splits the list across processes
   const [si,sn]=(process.env.SHARD||'0/1').split('/').map(Number), combos=[];
   ALL_ELS.forEach(e=>Object.keys(CLASSES).forEach(c=>combos.push([e,c])));
-  combos.forEach(([e,c],i)=>{ if(i%sn!==si) return; const ys=[]; for(let t=0;t<N;t++){ const team=[[e,c],[pick(ALL_ELS),pick(Object.keys(CLASSES))],[pick(ALL_ELS),pick(Object.keys(CLASSES))]]; ys.push(runOnce(null,team)); }
+  combos.forEach(([e,c],i)=>{ if(i%sn!==si) return; if(process.env.ONLY && !(e+'_'+c).includes(process.env.ONLY)) return; const ys=[]; for(let t=0;t<N;t++){ const team=[[e,c],[pick(ALL_ELS),pick(Object.keys(CLASSES))],[pick(ALL_ELS),pick(Object.keys(CLASSES))]]; ys.push(runOnce(null,team)); }
     console.log('combo',e+'_'+c,avg(ys).toFixed(3),(100*ys.filter(y=>y>=8).length/N).toFixed(0)); });
 } else if(mode==='mixed'){
   const rec=[], st={gap:[],at:{}};
