@@ -73,6 +73,9 @@ const RARE_WEIGHT = 0.5;   // each rare element is half as likely as a starter e
 const STARTER_CLASSES = ['fighter','cleric','rogue','mage','ranger','monk','bulwark','bard','sorcerer'];
 const STAT_KEYS = ['hp','off','pdef','sdef','spd','sta'];
 // Star boosts: each point adds this much of a stat; a recruited copy gets only part of your starter's bonus.
+// Stuns land 50% more often than a move's listed base chance, but a unit that just lost a turn to a stun is Dazed:
+// it can't be stunned again until it has had a turn, so everyone acts at least every other turn.
+const STUN_MULT = 1.5;
 const STAR_STEP = 10, STAR_STAT_MAX = 10, STAR_PER_POINT = 0.05, RECRUIT_STAR = 0.5;
 const STAT_NAME = { hp:'HP', off:'OFF', pdef:'DEF', sdef:'SpD', spd:'SPE', sta:'STA' };
 const EL_STATS = {
@@ -741,7 +744,7 @@ function mdesc(m) {
   if (m.pow) s.push(`<span class="pw" style="color:${powColor(m)}">${m.hits > 1 ? `POW ${m.pow} x${m.hits}` : `POW ${m.pow}`}</span>`);
   if (m.burn) s.push(m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`);
   if (m.poison) s.push(m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`);
-  if (m.stun) s.push(`${pct(m.stun)} stun`);
+  if (m.stun) s.push(`${pct(Math.min(1, m.stun * STUN_MULT))} stun`);
   if (m.para) s.push(m.para >= 1 ? 'paralyzes' : `${pct(m.para)} paralyze`);
   if (m.blind) s.push(`${pct(m.blind)} blind`);
   if (m.confuse) s.push(`${pct(m.confuse)} confuse`);

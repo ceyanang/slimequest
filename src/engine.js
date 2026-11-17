@@ -3,14 +3,14 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = n => 1 + Math.floor(Math.random() * n);
 const alive = arr => arr.filter(u => u.hp > 0);
 
-function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
+function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
 // Speed after paralysis (-25%) and speed stages; used for turn order.
 const has = (u, id) => u.item === id;
 const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0) * (has(u, 'badge') ? 1.5 : 1);
 const critOf = (a, m) => a.crit + (m.critBonus || 0) + Math.max(0, a.sSpd || 0) * 0.05 + (has(a, 'clover') ? 0.15 : 0);
 // Status chance after items: Alchemy Book boosts yours, Heavy Duty Armor resists control effects.
 const CONTROL = { stun:1, para:1, blind:1, confuse:1 };
-const ch = (a, d, p, k) => k === 'stun' && hasPas(d, 'bedrock') ? 0 : p * (a.pas === 'trap' ? 2 : 1) * (has(a, 'book') ? 1.25 : 1) * (CONTROL[k] && has(d, 'armor') ? 0.75 : 1);
+const ch = (a, d, p, k) => k === 'stun' && (hasPas(d, 'bedrock') || d.dazed) ? 0 : p * (k === 'stun' ? STUN_MULT : 1) * (a.pas === 'trap' ? 2 : 1) * (has(a, 'book') ? 1.25 : 1) * (CONTROL[k] && has(d, 'armor') ? 0.75 : 1);
 // Change a stat stage, clamped. Returns how much it actually moved.
 function stage(u, k, n) { const b = u[k]; u[k] = Math.max(ST_MIN, Math.min(ST_MAX, u[k] + n)); return u[k] - b; }
 const ST_NAME = { sOff:'OFF', sDef:'DEF', sSDef:'SpD', sSpd:'SPE' };
@@ -714,7 +714,7 @@ function counterAttack(d, a, dTeam, aTeam) {
   const ab = Math.min(a.shield, v); a.shield -= ab; v -= ab; a.hp -= v; a.hit = true;
   if (c.weaken) stage(a, 'sOff', -c.weaken);
   if (c.blind) a.blind = 3;
-  if (c.stun && Math.random() < c.stun) a.stun = 1;
+  if (c.stun && !a.stun && Math.random() < ch(d, a, c.stun, 'stun')) a.stun = 1;
   if (c.mendAlly) { const hurt = alive(dTeam).sort((x, y) => x.hp / x.max - y.hp / y.max)[0]; if (hurt) heal(hurt, v * c.mendAlly); }
   fx({ u:a, k:'dmg', v, el:c.el, small:true, ko:a.hp <= 0, tags:['COUNTER'] });
   if (--c.left <= 0) d.counter = null;
@@ -803,7 +803,8 @@ function act(a, m, target, allies, foes, L) {
 function act0(a, m, target, allies, foes, L) {
   if (a._oc) { a._oc = false; stage(a, 'sSpd', -1); }
   if (a.abducted) { L.push(`${nm(a)} is still up in the saucer!`); fx({ u:a, k:'name', t:'Abducted!', el:'psychic', snd:'status' }); return; }
-  if (a.stun) { a.stun = 0; L.push(`${nm(a)} is stunned and can't move!`); fx({ u:a, k:'name', t:'Stunned!', el:'lightning', snd:'status' }); return; }
+  if (a.stun) { a.stun = 0; a.dazed = 1; L.push(`${nm(a)} is stunned and can't move! (Dazed: can't be stunned again until its next turn.)`); fx({ u:a, k:'name', t:'Stunned!', el:'lightning', snd:'status' }); return; }
+  a.dazed = 0;   // it got its turn: it can be stunned again
   if (a.confuse && Math.random() < 0.4) {
     const v = calcDmg(a, a, { pow:30 }, 1, false); a.hp -= v; a.hit = true;
     L.push(`${nm(a)} is confused and hurts itself for ${v}!${a.hp <= 0 ? ' KO!' : ''}`);
@@ -1048,7 +1049,7 @@ function endRound(x, L) {
       let v = calcDmg(b.owner, o, { pow:b.pow }, effVs(b.el, o), false);
       const ab = Math.min(o.shield, v); o.shield -= ab; v -= ab; o.hp -= v; o.hit = true;
       if (b.burn && Math.random() < b.burn && !o.burn) o.burn = 3;
-      if (b.stun && Math.random() < b.stun) o.stun = 1;
+      if (b.stun && !o.stun && Math.random() < ch(b.owner, o, b.stun, 'stun')) o.stun = 1;
       fx({ u:o, k:'dmg', v, el:b.el, ko:o.hp <= 0, snd:'crit' }); hit.push(`${nm(o)} -${v}${o.hp <= 0 ? ' KO' : ''}`);
     });
     if (hit.length) L.push(`BOOM! The bomb explodes: ${hit.join(', ')}.`);
@@ -1144,7 +1145,7 @@ function scoreMove(a, m, t, allies, foes, round) {
       if (smart && AIW.focus && m.pow > 0 && dmg > 0) s += 32 * AIW.focus * thr / Math.max(1, Math.ceil(ehp / dmg));   // focus the squishy, scary ones
       if (m.pow > 0 && dmg >= ehp) s += 70 + (d.boss ? 20 : 0) + (smart && AIW.deny && d._r !== round ? 45 * AIW.deny * threatOf(d, foes) : 0); // finishing someone is worth a lot, more if it hasn't acted yet this round
       if (m.pow > 0) s += (1 - d.hp / d.max) * 15;          // focus wounded targets
-      s += (m.burn && !d.burn ? m.burn * 14 : 0) + (m.poison && !d.poison ? m.poison * 18 : 0) + ((m.stun && !d.stun ? m.stun * 25 : 0) + (m.para && !d.para ? m.para * 24 : 0) + (m.blind && !d.blind ? m.blind * 22 : 0) + (m.confuse && !d.confuse ? m.confuse * 24 : 0)) * (smart && AIW.ctl && d.hp > d.max * 0.25 ? ctl * 1.3 : 1) + (m.staDrain ? Math.min(d.sta, m.staDrain) * 0.5 : 0) + 0;
+      s += (m.burn && !d.burn ? m.burn * 14 : 0) + (m.poison && !d.poison ? m.poison * 18 : 0) + ((m.stun && !d.stun && !d.dazed ? m.stun * 25 : 0) + (m.para && !d.para ? m.para * 24 : 0) + (m.blind && !d.blind ? m.blind * 22 : 0) + (m.confuse && !d.confuse ? m.confuse * 24 : 0)) * (smart && AIW.ctl && d.hp > d.max * 0.25 ? ctl * 1.3 : 1) + (m.staDrain ? Math.min(d.sta, m.staDrain) * 0.5 : 0) + 0;
       if (m.mark && !d.marked) s += 12 * allyPower;
       if (m.bomb && !d.bomb) s += alive(foes).reduce((x, o) => x + Math.min(calcDmg(a, o, { pow:m.bomb.pow }, effVs(m.el, o), false), o.hp) / o.max * 70, 0);
       if (m.steal) s += buffCount(d) * 16;
