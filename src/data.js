@@ -31,7 +31,7 @@ const LVL_MAX = 100;
 const mult = L => 1 + 0.05 * (L - 1);
 
 const CLASSES = {
-  fighter:{ name:'Fighter', hp:51, off:11, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
+  fighter:{ name:'Fighter', hp:54, off:11.5, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
   cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
   mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
   monk:   { name:'Monk',    hp:46, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
@@ -409,9 +409,9 @@ const COMBO_MOVES = {
     { n:'Stone Arrow', el:'earth', pow:60, s:25, t:'foe', slow:1 },
     { n:'Pitfall', el:'earth', pow:0, s:25, t:'foe', stun:0.6 },
     { n:'Rockslide Volley', el:'earth', pow:55, s:50, t:'foes', slow:1 }],
-  light_fighter: [{ n:'Holy Strike', el:'light', pow:65, s:45, t:'foe', blind:0.4 },
-    { n:'Radiant Guard',   el:'light', pow:55,  s:40, t:'foe', teamShield:0.15 }, { n:'Aegis of Dawn', el:'light', pow:90, s:60, t:'foe', teamHeal:0.3, cleanseTeam:true },
-    { n:'Dawn Strike', el:'light', pow:55, s:30, t:'foe',  leech:0.3 }, { n:'Hallowed Ground', el:'light', pow:0, s:40, t:'allies', shieldPct:0.18 },
+  light_fighter: [{ n:'Holy Strike', el:'light', pow:65, s:45, t:'foe', teamHeal:0.06 },   // a damage dealer whose hits heal the team
+    { n:'Sunfire Blade',   el:'light', pow:80,  s:50, t:'foe', teamHeal:0.1 }, { n:'Aegis of Dawn', el:'light', pow:90, s:60, t:'foe', teamHeal:0.3, cleanseTeam:true },
+    { n:'Dawn Strike', el:'light', pow:55, s:30, t:'foe',  leech:0.3 }, { n:'Lightbringer', el:'light', pow:60, s:35, t:'foe', mendAlly:0.35 },
     { n:'Radiant Sweep', el:'light', pow:60, s:55, t:'foes', teamHeal:0.12 }],
   light_cleric:     [{ n:'Divine Grace', el:'light', pow:0, s:45, t:'allies', shieldPct:0.22 },
     { n:'Blessed Light', el:'light', pow:0, s:45, t:'allies', offUp:1, armor:1 },
