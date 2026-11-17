@@ -135,9 +135,9 @@ function showStarInfo() {
 }
 // Tap-to-inspect: stats (with current boosts), passive, matchups, statuses and moves.
 function showUnitInfo(u) {
-  const st = [['HP', `${Math.max(0, u.hp)}/${u.max}`, 0], ['OFF', Math.round(u.off * stMul(u.sOff || 0)), u.sOff], ['DEF', Math.round(u.pdef * stMul(u.sDef || 0)), u.sDef],
-    ['SpD', Math.round(u.sdef * stMul(u.sSDef || 0)), u.sSDef], ['SPE', Math.round(u.spd * stMul(u.sSpd || 0)), u.sSpd], ['STA', `${u.sta}/${u.staMax}`, 0], ['CRIT', Math.round((u.crit || 0) * 100) + '%', 0]];
-  const arrow = s => !s ? '' : s > 0 ? ` <span style="color:#7cd67c">+${s * 25}%</span>` : ` <span style="color:#ff6b6b">${s * 25}%</span>`;
+  const st = [['HP', `${Math.max(0, u.hp)}/${u.max}`, 0], ['OFF', Math.round(u.off * stMul(u.sOff || 0, u)), u.sOff], ['DEF', Math.round(u.pdef * stMul(u.sDef || 0, u)), u.sDef],
+    ['SpD', Math.round(u.sdef * stMul(u.sSDef || 0, u)), u.sSDef], ['SPE', Math.round(u.spd * stMul(u.sSpd || 0, u)), u.sSpd], ['STA', `${u.sta}/${u.staMax}`, 0], ['CRIT', Math.round((u.crit || 0) * 100) + '%', 0]];
+  const arrow = s => !s ? '' : s > 0 ? ` <span style="color:#7cd67c">+${s * 25}%</span>` : ` <span style="color:#ff6b6b">${Math.round((stMul(s, u) - 1) * 100)}%</span>`;
   const mult = ALL_ELS.map(e => [e, effVs(e, u)]);
   const weak = mult.filter(x => x[1] > 1.01).sort((a, b) => b[1] - a[1]), res = mult.filter(x => x[1] < 0.99).sort((a, b) => a[1] - b[1]);
   const ml = list => list.length ? list.map(([e, m]) => `${etag(e)} <small>${m.toFixed(2).replace(/\.?0+$/, '')}x</small>`).join(' ') : '<small>none</small>';
@@ -801,7 +801,7 @@ function statusTags(x) {
   if (x.abducted) t.push(['ABDUCTED ' + x.abducted, '#d17fe8']);
   if (x.rang) t.push(['BOOMERANG OUT', '#ff8c42']);
   if (x.heat) t.push([`HEAT ${Math.round(Math.min(x.heat.max, x.heat.step * (x.heat.n + 1)) * 100)}%`, '#f94144']);
-  for (const [k, lab] of [['sOff', 'OFF'], ['sDef', 'DEF'], ['sSDef', 'SpD'], ['sSpd', 'SPE']]) if (x[k]) t.push([`${lab}${x[k] > 0 ? '+' : '-'}${Math.abs(x[k]) * 25}%`, x[k] > 0 ? '#2d9a4a' : '#c0392b']);
+  for (const [k, lab] of [['sOff', 'OFF'], ['sDef', 'DEF'], ['sSDef', 'SpD'], ['sSpd', 'SPE']]) if (x[k]) t.push([`${lab}${x[k] > 0 ? '+' : '-'}${Math.round(Math.abs(stMul(x[k], x) - 1) * 100)}%`, x[k] > 0 ? '#2d9a4a' : '#c0392b']);
   return t.map(([s, c]) => `<span class="st" style="background:${c}">${s}</span>`).join('');
 }
 

@@ -751,7 +751,9 @@ const powColor = m => { const p = (m.pow || 0) * (m.hits || 1); return POW_COLOR
 // Stat stages (like Pokemon): each stage is 25%. Raises stack to +150% (6 stages), lowers to -75% (3 stages).
 // They last the whole fight. 1 stage = raises/lowers, 2 = sharply, 3+ = drastically.
 const ST_MIN = -3, ST_MAX = 6;
-const stMul = s => 1 + 0.25 * s;
+// Each stat stage is 25%; on bosses each LOWERED stage only counts 20% (a fully debuffed boss keeps 40%, not 25%).
+const BOSS_DEBUFF_STEP = 0.2;
+const stMul = (s, u) => 1 + (s < 0 && u && u.boss ? BOSS_DEBUFF_STEP : 0.25) * s;
 const stN = (v, dflt) => v === true ? dflt : v;
 const stWord = (n, what) => `${['', '', 'sharply ', 'drastically '][Math.min(3, Math.abs(n))]}${n > 0 ? 'raises' : 'lowers'} ${what} ${Math.abs(n) * 25}%`;
 function mdesc(m) {
