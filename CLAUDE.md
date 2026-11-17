@@ -10,6 +10,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 ## Owner preferences
 - The owner's "1" key is broken: they write "one" ("one.2" = 1.2). Typos are common; flag ambiguous requests briefly instead of guessing silently.
 - After each change, say what changed in a few sentences.
+- After each finished change (build + smoke test pass): publish index.html to the existing artifact https://claude.ai/artifact/XHXb7JJCAydMq8uya7ybPk (same URL keeps cloud saves; keep its db/user capabilities), then open a PR and merge it into main. No need to ask first.
 
 ## Design rules
 - Every element+class combo moveset should have its own niche. No element-only moves.
