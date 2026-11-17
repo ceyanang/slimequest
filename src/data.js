@@ -35,7 +35,7 @@ const CLASSES = {
   cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
   mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
   monk:   { name:'Monk',    hp:49, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
-  bulwark:{ name:'Bulwark', hp:78, off:10.8, pdef:15, sdef:12, spd:3.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
+  bulwark:{ name:'Bulwark', hp:78, off:10.8, pdef:15, sdef:12, spd:2.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
   bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
   ranger: { name:'Ranger',  hp:50, off:10.5, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
   sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
@@ -220,12 +220,12 @@ const CLASS_MOVES = {
   ],
   bulwark: [   // the tank: protects allies, soaks hits, slow but sturdy
     { n:'Shield Up',          el:'neutral', pow:0, s:20, t:'self', taunt:2 },
-    { n:'Hammer Down',        el:'self', pow:60,  s:30, t:'foe',  stun:0.25 },
+    { n:'Hammer Down',        el:'self', pow:60,  s:30, t:'foe',  stun:0.25, bulk:0.5 },
     { n:'Guard',              el:'neutral', pow:0, s:25, t:'ally', guard:3, armor:1 },
     { n:'Fortress',           el:'neutral', pow:0, s:30, t:'self', armor:2 },
-    { n:'Shield Slam',        el:'self', pow:55,  s:30, t:'foe',  weaken:1 },
+    { n:'Shield Slam',        el:'self', pow:55,  s:30, t:'foe',  weaken:1, bulk:0.5 },
     { n:'Last Stand',         el:'neutral', pow:0, s:40, t:'self', healPct:0.3, armor:1 },
-    { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.3 }
+    { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.08, para:0.2 }
   ],
   sorcerer: [  // pure elemental power: slow, sturdy, blasts the whole field
     { n:'Elemental Wave', el:'self', pow:45,  s:30, t:'foes' },
@@ -713,8 +713,24 @@ const ELEM_PMOVES = {
 };
 // True if u has passive id, either as its class passive or as a learned move-slot passive.
 const hasPas = (u, id) => !!u && (u.pas === id || (!!u.moves && u.moves.some(m => m.passive === id)));
+// Element+class passives (a unique passive for that combo) and extra class passives, learned as move-slot passives.
+// Bulwark is the passive-heavy class: its old Fortress (Lv17) and Last Stand (Lv38) slots are passives now.
+const COMBO_PMOVE_LV = 17;
+const COMBO_PMOVES = {
+  fire_bulwark:      PM('kiln', 'Molten Core', 'Passive: anyone who hits it with a single-target attack has a 25% chance to be burned.'),
+  water_bulwark:     PM('tidewall', 'Tidal Wall', 'Passive: regenerates 5% max HP at the end of each round while taunting.'),
+  life_bulwark:      PM('bramble', 'Bramble Hide', 'Passive: attackers take 15% of the damage they deal to it back.'),
+  lightning_bulwark: PM('staticbody', 'Static Body', 'Passive: anyone who hits it with a single-target attack has a 25% chance to be paralyzed.'),
+  earth_bulwark:     PM('mountain', 'Mountain', 'Passive: takes 25% less damage from attacks that hit all foes.'),
+  light_bulwark:     PM('sanctuary', 'Sanctuary', 'Passive: at the end of each round, heals the most hurt ally for 5% of their max HP.'),
+  dark_bulwark:      PM('grudge', 'Grudge', 'Passive: deals 25% more damage while below half HP.'),
+  psychic_bulwark:   PM('mindwall', 'Mind Wall', 'Passive: takes 25% less damage from special attacks.')
+};
+const CLASS_EXTRA_PMOVES = { bulwark:[{ lvl:38, m:PM('laststand', 'Last Stand', 'Passive: takes 25% less damage while below half HP.') }] };
 function learnset(el, cls) {
   const out = [];
+  if (COMBO_PMOVES[el + '_' + cls]) out.push({ lvl:COMBO_PMOVE_LV, m:{ ...COMBO_PMOVES[el + '_' + cls], tag:'Passive' } });
+  (CLASS_EXTRA_PMOVES[cls] || []).forEach(x => out.push({ lvl:x.lvl, m:{ ...x.m, tag:'Passive' } }));
   if (CLASS_PMOVES[cls]) out.push({ lvl:PASSIVE_MOVE_LV.cls, m:{ ...CLASS_PMOVES[cls], tag:'Passive' } });
   if (ELEM_PMOVES[el]) out.push({ lvl:PASSIVE_MOVE_LV.el, m:{ ...ELEM_PMOVES[el], tag:'Passive' } });
   const cl = CLASS_LEARN[cls] || {}, combos = COMBO_MOVES[el + '_' + cls] || [];
@@ -742,6 +758,7 @@ function mdesc(m) {
   if (m.passive) return m.d;
   const s = [];
   if (m.pow) s.push(`<span class="pw" style="color:${powColor(m)}">${m.hits > 1 ? `POW ${m.pow} x${m.hits}` : `POW ${m.pow}`}</span>`);
+  if (m.bulk) s.push(`uses DEF for ${pct(m.bulk)} of its power`);
   if (m.burn) s.push(m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`);
   if (m.poison) s.push(m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`);
   if (m.stun) s.push(`${pct(Math.min(1, m.stun * STUN_MULT))} stun`);
