@@ -3725,12 +3725,12 @@ const CLASSES = {
   fighter:{ name:'Fighter', hp:54, off:11.5, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
   cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
   mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
-  monk:   { name:'Monk',    hp:46, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
-  bulwark:{ name:'Bulwark', hp:78, off:10.8, pdef:15, sdef:12, spd:3.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
+  monk:   { name:'Monk',    hp:49, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
+  bulwark:{ name:'Bulwark', hp:72, off:10.8, pdef:15, sdef:12, spd:2.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
   bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
-  ranger: { name:'Ranger',  hp:50, off:10, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
+  ranger: { name:'Ranger',  hp:50, off:10.5, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
   sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
-  rogue:  { name:'Rogue',   hp:48, off:11.9, pdef:8, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
+  rogue:  { name:'Rogue',   hp:52, off:11.9, pdef:9, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
 };
 /* ---- class passives: a starter picks one of its class's two, recruits roll one at random ---- */
 const PASSIVES = {
@@ -3776,7 +3776,7 @@ const EL_STATS = {
   lightning: { hp:+0.5, off:+1, pdef:+0, sdef:+0, spd:+1.75, sta:0,  desc:'Fast and tricky: paralyzes, hastes allies' },
   earth: { hp:+1, off:+1, pdef:+1.5, sdef:-0.5, spd:-1.5, sta:-1, desc:'Tough, solid and strong, but sluggish' },
   light:   { hp:+0.5, off:0,  pdef:+0, sdef:+0.75,  spd:-1, sta:-1, desc:'Strong protector: shields, heals, and attacks that mend allies' },
-  dark:    { hp:+0.5,  off:+1.5, pdef:+0, sdef:+0,  spd:+0.75, sta:-0.5, desc:'Ruthless offense: hits hard, blinds foes, veils allies' },
+  dark:    { hp:+1,  off:+1.5, pdef:+0, sdef:+0,  spd:+0.75, sta:-0.5, desc:'Ruthless offense: hits hard, blinds foes, veils allies' },
   psychic: { hp:0,  off:0,  pdef:+0, sdef:+0.5,  spd:+1,  sta:+0.5, desc:'Fast controller: confusion and stamina drain, usually first to act' }
 };
 // Element steps: each step is +/-10% for HP, OFF, DEF and SPE, or +/-12 for stamina.
@@ -3911,12 +3911,12 @@ const CLASS_MOVES = {
   ],
   bulwark: [   // the tank: protects allies, soaks hits, slow but sturdy
     { n:'Shield Up',          el:'neutral', pow:0, s:20, t:'self', taunt:2 },
-    { n:'Hammer Down',        el:'self', pow:60,  s:30, t:'foe',  stun:0.25 },
+    { n:'Hammer Down',        el:'self', pow:60,  s:30, t:'foe',  stun:0.25, bulk:0.5 },
     { n:'Guard',              el:'neutral', pow:0, s:25, t:'ally', guard:3, armor:1 },
     { n:'Fortress',           el:'neutral', pow:0, s:30, t:'self', armor:2 },
-    { n:'Shield Slam',        el:'self', pow:55,  s:30, t:'foe',  weaken:1 },
+    { n:'Shield Slam',        el:'self', pow:55,  s:30, t:'foe',  weaken:1, bulk:0.5 },
     { n:'Last Stand',         el:'neutral', pow:0, s:40, t:'self', healPct:0.3, armor:1 },
-    { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.3 }
+    { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.08, para:0.2 }
   ],
   sorcerer: [  // pure elemental power: slow, sturdy, blasts the whole field
     { n:'Elemental Wave', el:'self', pow:45,  s:30, t:'foes' },
@@ -4404,8 +4404,24 @@ const ELEM_PMOVES = {
 };
 // True if u has passive id, either as its class passive or as a learned move-slot passive.
 const hasPas = (u, id) => !!u && (u.pas === id || (!!u.moves && u.moves.some(m => m.passive === id)));
+// Element+class passives (a unique passive for that combo) and extra class passives, learned as move-slot passives.
+// Bulwark is the passive-heavy class: its old Fortress (Lv17) and Last Stand (Lv38) slots are passives now.
+const COMBO_PMOVE_LV = 17;
+const COMBO_PMOVES = {
+  fire_bulwark:      PM('kiln', 'Molten Core', 'Passive: anyone who hits it with a single-target attack has a 25% chance to be burned.'),
+  water_bulwark:     PM('tidewall', 'Tidal Wall', 'Passive: regenerates 5% max HP at the end of each round while taunting.'),
+  life_bulwark:      PM('bramble', 'Bramble Hide', 'Passive: attackers take 15% of the damage they deal to it back.'),
+  lightning_bulwark: PM('staticbody', 'Static Body', 'Passive: anyone who hits it with a single-target attack has a 25% chance to be paralyzed.'),
+  earth_bulwark:     PM('mountain', 'Mountain', 'Passive: takes 25% less damage from attacks that hit all foes.'),
+  light_bulwark:     PM('sanctuary', 'Sanctuary', 'Passive: at the end of each round, heals the most hurt ally for 5% of their max HP.'),
+  dark_bulwark:      PM('grudge', 'Grudge', 'Passive: deals 25% more damage while below half HP.'),
+  psychic_bulwark:   PM('mindwall', 'Mind Wall', 'Passive: takes 25% less damage from special attacks.')
+};
+const CLASS_EXTRA_PMOVES = { bulwark:[{ lvl:38, m:PM('laststand', 'Last Stand', 'Passive: takes 25% less damage while below half HP.') }] };
 function learnset(el, cls) {
   const out = [];
+  if (COMBO_PMOVES[el + '_' + cls]) out.push({ lvl:COMBO_PMOVE_LV, m:{ ...COMBO_PMOVES[el + '_' + cls], tag:'Passive' } });
+  (CLASS_EXTRA_PMOVES[cls] || []).forEach(x => out.push({ lvl:x.lvl, m:{ ...x.m, tag:'Passive' } }));
   if (CLASS_PMOVES[cls]) out.push({ lvl:PASSIVE_MOVE_LV.cls, m:{ ...CLASS_PMOVES[cls], tag:'Passive' } });
   if (ELEM_PMOVES[el]) out.push({ lvl:PASSIVE_MOVE_LV.el, m:{ ...ELEM_PMOVES[el], tag:'Passive' } });
   const cl = CLASS_LEARN[cls] || {}, combos = COMBO_MOVES[el + '_' + cls] || [];
@@ -4433,6 +4449,7 @@ function mdesc(m) {
   if (m.passive) return m.d;
   const s = [];
   if (m.pow) s.push(`<span class="pw" style="color:${powColor(m)}">${m.hits > 1 ? `POW ${m.pow} x${m.hits}` : `POW ${m.pow}`}</span>`);
+  if (m.bulk) s.push(`uses DEF for ${pct(m.bulk)} of its power`);
   if (m.burn) s.push(m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`);
   if (m.poison) s.push(m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`);
   if (m.stun) s.push(`${pct(Math.min(1, m.stun * STUN_MULT))} stun`);
@@ -4748,6 +4765,7 @@ function gainLevels(p, n) {
 }
 // Value estimate used by the AI when it has to forget a move.
 function moveValue(m) {
+  if (m.passive) return 70;   // the bot keeps passives over most single moves, like players do
   return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.shieldPct || 0) * 120 +
     (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) +
     (m.detonate ? 20 : 0) + (m.spread ? 22 : 0) + (m.chain ? m.pow * (m.chain - 1) * 0.5 : 0) + (m.charge ? 45 : 0) + (m.counter ? m.counter.pow * 0.8 : 0) + (m.steal ? 15 : 0) + (m.pierce ? 12 : 0) + (m.berserk ? 15 : 0) + (m.mark ? 18 : 0) + (m.overheal ? 10 : 0) + (m.bomb ? m.bomb.pow * 1.5 : 0) - (m.hpCost || 0) * 60;
@@ -5299,7 +5317,9 @@ function calcDmg(a, d, m, eff, crit) {
   const sp = (m.cat || a.ecat || 'p') === 's', st0 = (sp ? d.sSDef : d.sDef) || 0;
   const ds = m.pierce ? Math.min(0, st0) : st0, e = m.pierce ? Math.max(1, eff) : eff;
   const dv = (hasPas(d, 'bedrock') ? 1.25 : 1) * (d.pm || 1) * (sp ? d.sdef * (has(d, 'cloak') ? 1.5 : 1) : (d.pas === 'tricky' ? (d.sdef + d.pdef) / 2 : d.pdef) * (has(d, 'armor') ? 1.5 : 1));
-  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * offOf(a) / (dv * stMul(ds)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
+  // Bulk hits (Bulwark): part of the attack stat comes from the attacker's DEF instead of OFF.
+  const atk = m.bulk ? offOf(a) * (1 - m.bulk) + a.pdef * stMul(a.sDef || 0) * (has(a, 'armor') ? 1.5 : 1) * m.bulk : offOf(a);
+  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * atk / (dv * stMul(ds)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
   if (m.berserk) v *= 1 + (m.berserk === true ? 1 : m.berserk) * (1 - Math.max(0, a.hp) / a.max);   // hits harder the more HP is missing
   if (m.bonusVs && d[m.bonusVs]) v *= 1.5;   // punishes foes already suffering that status
   if (a.charged && m.pow > 0) v *= 2;
@@ -5310,6 +5330,10 @@ function calcDmg(a, d, m, eff, crit) {
   if (hasPas(a, 'nightfall') && d.hp < d.max / 2) v *= 1.25;
   if (hasPas(d, 'hold') && d.taunt > 0) v *= 0.75;
   if (hasPas(d, 'ironbody') && d.hp > d.max / 2) v *= 0.75;
+  if (hasPas(d, 'laststand') && d.hp < d.max / 2) v *= 0.75;
+  if (hasPas(d, 'mountain') && m.t === 'foes') v *= 0.75;
+  if (hasPas(d, 'mindwall') && sp) v *= 0.75;
+  if (hasPas(a, 'grudge') && a.hp < a.max / 2) v *= 1.25;
   return Math.max(1, Math.round(v));
 }
 function resolveTargets(a, m, target, allies, foes) {
@@ -5423,7 +5447,8 @@ function battleStart(team, foes, node) {
     if (u.pas === 'champion') u.taunt = 1;
     if (u.pas === 'defender') alive(team).forEach(o => { stage(o, 'sDef', 1); stage(o, 'sSDef', 1); o.defN = (o.defN || 0) + 1; o.defT = 3; });
   });
-  foes.forEach(u => { if (u.heat) u.heat.team = team; });   // the Sun's heat burns your side
+  foes.forEach(u => { if (u.heat) u.heat.team = team; });
+  [team, foes].forEach(side => side.forEach(u => { if (hasPas(u, 'sanctuary')) u.teamRef = side; }));   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
     u._fs = false; u._hm = false; u._oc = false;
@@ -5562,6 +5587,9 @@ function act0(a, m, target, allies, foes, L) {
         if (hasPas(a, 'huntmark') && !a._hm && d.hp > 0) { a._hm = true; d.marked = Math.max(d.marked || 0, 2); fl.push('hunted'); }
         if (multi) { fx({ u:d, k:'dmg', v:dmg, crit, eff, el:m.el, small:true, delay:h * 230, snd:crit ? 'crit' : 'hit', hp:Math.max(0, d.hp), max:d.max, from:firstFx ? hp0 : undefined }); firstFx = false; }
         if (has(d, 'thorns') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
+        if (hasPas(d, 'bramble') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
+        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'kiln') && !a.burn && Math.random() < 0.25) { a.burn = 3; fl.push(`${nm(a)} burned by its molten core`); }
+        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'staticbody') && !a.para && Math.random() < 0.25) { a.para = 3; fl.push(`${nm(a)} paralyzed by static`); }
         if (d.hp <= 0 && has(d, 'plume') && !d.plumeUsed) { d.hp = 1; d.plumeUsed = true; fl.push('held on'); }
         if (d.hp <= 0 && d.pas === 'standing' && !d.standUsed) { d.hp = 1; d.standUsed = true; fl.push('STILL STANDING'); fx({ u:d, k:'num', t:'STILL STANDING', c:'#f9c74f', burst:'buff' }); }
         if (d.pas === 'spite' && dmg > 0 && d.hp > 0) { const tgt = pick(alive(allies)); if (tgt) { const r = Math.max(1, Math.round(dmg * 0.2)); tgt.hp -= r; tgt.hit = true; fl.push(`spite hits ${nm(tgt)} for ${r}`); fx({ u:tgt, k:'dmg', v:r, el:d.el, small:true, ko:tgt.hp <= 0, tags:['SPITE'] }); } }
@@ -5692,6 +5720,8 @@ function checkPhase(x, L) {
 function endRound(x, L) {
   checkPhase(x, L);
   if (x.hp > 0 && hasPas(x, 'wellspring')) x.sta = Math.min(x.staMax, x.sta + 10);
+  if (x.hp > 0 && hasPas(x, 'tidewall') && x.taunt > 0) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
+  if (x.hp > 0 && hasPas(x, 'sanctuary') && x.teamRef) { const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0]; if (w && w.hp < w.max) { const h = heal(w, w.max * 0.05); if (h) { L.push(`${nm(x)}'s Sanctuary heals ${nm(w)} (+${h}).`); fx({ u:w, k:'heal', v:h, small:true }); } } }
   if (x.hp > 0 && hasPas(x, 'photo')) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
   summonTick(x, L);
   if (x.pas === 'guardian' && x.hp > 0 && x.teamRef) {   // Guardian Angel: shield the most hurt ally

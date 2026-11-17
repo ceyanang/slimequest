@@ -93,6 +93,7 @@ function gainLevels(p, n) {
 }
 // Value estimate used by the AI when it has to forget a move.
 function moveValue(m) {
+  if (m.passive) return 70;   // the bot keeps passives over most single moves, like players do
   return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.shieldPct || 0) * 120 +
     (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) +
     (m.detonate ? 20 : 0) + (m.spread ? 22 : 0) + (m.chain ? m.pow * (m.chain - 1) * 0.5 : 0) + (m.charge ? 45 : 0) + (m.counter ? m.counter.pow * 0.8 : 0) + (m.steal ? 15 : 0) + (m.pierce ? 12 : 0) + (m.berserk ? 15 : 0) + (m.mark ? 18 : 0) + (m.overheal ? 10 : 0) + (m.bomb ? m.bomb.pow * 1.5 : 0) - (m.hpCost || 0) * 60;
@@ -644,7 +645,9 @@ function calcDmg(a, d, m, eff, crit) {
   const sp = (m.cat || a.ecat || 'p') === 's', st0 = (sp ? d.sSDef : d.sDef) || 0;
   const ds = m.pierce ? Math.min(0, st0) : st0, e = m.pierce ? Math.max(1, eff) : eff;
   const dv = (hasPas(d, 'bedrock') ? 1.25 : 1) * (d.pm || 1) * (sp ? d.sdef * (has(d, 'cloak') ? 1.5 : 1) : (d.pas === 'tricky' ? (d.sdef + d.pdef) / 2 : d.pdef) * (has(d, 'armor') ? 1.5 : 1));
-  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * offOf(a) / (dv * stMul(ds)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
+  // Bulk hits (Bulwark): part of the attack stat comes from the attacker's DEF instead of OFF.
+  const atk = m.bulk ? offOf(a) * (1 - m.bulk) + a.pdef * stMul(a.sDef || 0) * (has(a, 'armor') ? 1.5 : 1) * m.bulk : offOf(a);
+  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * atk / (dv * stMul(ds)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
   if (m.berserk) v *= 1 + (m.berserk === true ? 1 : m.berserk) * (1 - Math.max(0, a.hp) / a.max);   // hits harder the more HP is missing
   if (m.bonusVs && d[m.bonusVs]) v *= 1.5;   // punishes foes already suffering that status
   if (a.charged && m.pow > 0) v *= 2;
@@ -655,6 +658,10 @@ function calcDmg(a, d, m, eff, crit) {
   if (hasPas(a, 'nightfall') && d.hp < d.max / 2) v *= 1.25;
   if (hasPas(d, 'hold') && d.taunt > 0) v *= 0.75;
   if (hasPas(d, 'ironbody') && d.hp > d.max / 2) v *= 0.75;
+  if (hasPas(d, 'laststand') && d.hp < d.max / 2) v *= 0.75;
+  if (hasPas(d, 'mountain') && m.t === 'foes') v *= 0.75;
+  if (hasPas(d, 'mindwall') && sp) v *= 0.75;
+  if (hasPas(a, 'grudge') && a.hp < a.max / 2) v *= 1.25;
   return Math.max(1, Math.round(v));
 }
 function resolveTargets(a, m, target, allies, foes) {
@@ -768,7 +775,8 @@ function battleStart(team, foes, node) {
     if (u.pas === 'champion') u.taunt = 1;
     if (u.pas === 'defender') alive(team).forEach(o => { stage(o, 'sDef', 1); stage(o, 'sSDef', 1); o.defN = (o.defN || 0) + 1; o.defT = 3; });
   });
-  foes.forEach(u => { if (u.heat) u.heat.team = team; });   // the Sun's heat burns your side
+  foes.forEach(u => { if (u.heat) u.heat.team = team; });
+  [team, foes].forEach(side => side.forEach(u => { if (hasPas(u, 'sanctuary')) u.teamRef = side; }));   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
     u._fs = false; u._hm = false; u._oc = false;
@@ -907,6 +915,9 @@ function act0(a, m, target, allies, foes, L) {
         if (hasPas(a, 'huntmark') && !a._hm && d.hp > 0) { a._hm = true; d.marked = Math.max(d.marked || 0, 2); fl.push('hunted'); }
         if (multi) { fx({ u:d, k:'dmg', v:dmg, crit, eff, el:m.el, small:true, delay:h * 230, snd:crit ? 'crit' : 'hit', hp:Math.max(0, d.hp), max:d.max, from:firstFx ? hp0 : undefined }); firstFx = false; }
         if (has(d, 'thorns') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
+        if (hasPas(d, 'bramble') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
+        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'kiln') && !a.burn && Math.random() < 0.25) { a.burn = 3; fl.push(`${nm(a)} burned by its molten core`); }
+        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'staticbody') && !a.para && Math.random() < 0.25) { a.para = 3; fl.push(`${nm(a)} paralyzed by static`); }
         if (d.hp <= 0 && has(d, 'plume') && !d.plumeUsed) { d.hp = 1; d.plumeUsed = true; fl.push('held on'); }
         if (d.hp <= 0 && d.pas === 'standing' && !d.standUsed) { d.hp = 1; d.standUsed = true; fl.push('STILL STANDING'); fx({ u:d, k:'num', t:'STILL STANDING', c:'#f9c74f', burst:'buff' }); }
         if (d.pas === 'spite' && dmg > 0 && d.hp > 0) { const tgt = pick(alive(allies)); if (tgt) { const r = Math.max(1, Math.round(dmg * 0.2)); tgt.hp -= r; tgt.hit = true; fl.push(`spite hits ${nm(tgt)} for ${r}`); fx({ u:tgt, k:'dmg', v:r, el:d.el, small:true, ko:tgt.hp <= 0, tags:['SPITE'] }); } }
@@ -1037,6 +1048,8 @@ function checkPhase(x, L) {
 function endRound(x, L) {
   checkPhase(x, L);
   if (x.hp > 0 && hasPas(x, 'wellspring')) x.sta = Math.min(x.staMax, x.sta + 10);
+  if (x.hp > 0 && hasPas(x, 'tidewall') && x.taunt > 0) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
+  if (x.hp > 0 && hasPas(x, 'sanctuary') && x.teamRef) { const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0]; if (w && w.hp < w.max) { const h = heal(w, w.max * 0.05); if (h) { L.push(`${nm(x)}'s Sanctuary heals ${nm(w)} (+${h}).`); fx({ u:w, k:'heal', v:h, small:true }); } } }
   if (x.hp > 0 && hasPas(x, 'photo')) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
   summonTick(x, L);
   if (x.pas === 'guardian' && x.hp > 0 && x.teamRef) {   // Guardian Angel: shield the most hurt ally
