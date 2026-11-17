@@ -6,7 +6,7 @@ const alive = arr => arr.filter(u => u.hp > 0);
 function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
 // Speed after paralysis (-25%) and speed stages; used for turn order.
 const has = (u, id) => u.item === id;
-const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0) * (has(u, 'badge') ? 1.5 : 1);
+const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0, u) * (has(u, 'badge') ? 1.5 : 1);
 const critOf = (a, m) => a.crit + (m.critBonus || 0) + Math.max(0, a.sSpd || 0) * 0.05 + (has(a, 'clover') ? 0.15 : 0);
 // Status chance after items: Alchemy Book boosts yours, Heavy Duty Armor resists control effects.
 const CONTROL = { stun:1, para:1, blind:1, confuse:1 };
@@ -637,7 +637,7 @@ let FX = [];
 const fx = e => { if (FX) FX.push(e); };
 function heal(x, amt) { const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
 const nm = x => x.name;
-const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
+const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0, a) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
 const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
 function calcDmg(a, d, m, eff, crit) {
   if (a.pas === 'embody' && eff < 1) eff = 1;   // resisted hits land at full strength
@@ -646,8 +646,8 @@ function calcDmg(a, d, m, eff, crit) {
   const ds = m.pierce ? Math.min(0, st0) : st0, e = m.pierce ? Math.max(1, eff) : eff;
   const dv = (hasPas(d, 'bedrock') ? 1.25 : 1) * (d.pm || 1) * (sp ? d.sdef * (has(d, 'cloak') ? 1.5 : 1) : (d.pas === 'tricky' ? (d.sdef + d.pdef) / 2 : d.pdef) * (has(d, 'armor') ? 1.5 : 1));
   // Bulk hits (Bulwark): part of the attack stat comes from the attacker's DEF instead of OFF.
-  const atk = m.bulk ? offOf(a) * (1 - m.bulk) + a.pdef * stMul(a.sDef || 0) * (has(a, 'armor') ? 1.5 : 1) * m.bulk : offOf(a);
-  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * atk / (dv * stMul(ds)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
+  const atk = m.bulk ? offOf(a) * (1 - m.bulk) + a.pdef * stMul(a.sDef || 0, a) * (has(a, 'armor') ? 1.5 : 1) * m.bulk : offOf(a);
+  let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * atk / (dv * stMul(ds, d)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
   if (m.berserk) v *= 1 + (m.berserk === true ? 1 : m.berserk) * (1 - Math.max(0, a.hp) / a.max);   // hits harder the more HP is missing
   if (m.bonusVs && d[m.bonusVs]) v *= 1.5;   // punishes foes already suffering that status
   if (a.charged && m.pow > 0) v *= 2;
@@ -1130,7 +1130,7 @@ function expDmg(a, d, m) {
    - treat stuns, paralysis, confusion, blinds and OFF drops as "skip their turn", worth most on their biggest hitter
    - heal when someone would actually die to the next round of hits, not just because they're scratched */
 const AIW = { focus:1, ctl:1, heal:1, deny:1, sideP:1, sideE:1 };   // tuning switches for the tactical rules
-const offPow = u => u.off * stMul(u.sOff || 0) * (u.charged ? 1.3 : 1);
+const offPow = u => u.off * stMul(u.sOff || 0, u) * (u.charged ? 1.3 : 1);
 function threatOf(d, team) { const al = alive(team); if (!al.length) return 1; const avg = al.reduce((x, u) => x + offPow(u), 0) / al.length; return Math.max(0.4, Math.min(2, offPow(d) / Math.max(1, avg))); }
 // Roughly how much damage u could take before it acts again: the hardest single hit, plus part of everyone else's.
 function incoming(u, foes) {
@@ -1277,7 +1277,7 @@ function planFor1(a, allies, foes, round = 1, noise = 0.12) {
     if (a.locked && m.n !== a.locked) continue;
     if (!a.locked && (has(a, 'hat') || has(a, 'badge')) && !(m.pow > 0) && m.t !== 'fallen') continue;   // don't lock into a non-attack
     const taunters = alive(foes).filter(u => u.taunt > 0);
-    const hunt = a.hunter && !taunters.length ? [alive(foes).reduce((x, y) => y.off * stMul(y.sOff || 0) > x.off * stMul(x.sOff || 0) ? y : x)] : null;   // goes for your strongest hitter
+    const hunt = a.hunter && !taunters.length ? [alive(foes).reduce((x, y) => y.off * stMul(y.sOff || 0, y) > x.off * stMul(x.sOff || 0, x) ? y : x)] : null;   // goes for your strongest hitter
     const reach = alive(foes).filter(u => !u.abducted);
     const tgs = m.t === 'foe' ? (taunters.length ? taunters : hunt || (reach.length ? reach : alive(foes))) : m.t === 'ally' ? alive(allies).filter(u => !m.guard || u !== a) : m.t === 'fallen' ? allies.filter(u => u.hp <= 0) : [null];
     for (const t of tgs) opts.push({ m, target:t, s:scoreMove(a, m, t, allies, foes, round) * (1 + (Math.random() - 0.5) * noise) * (a.favor && t && t.cls === a.favor && m.t === 'ally' ? 2.5 : 1) });
