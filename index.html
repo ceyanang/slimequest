@@ -7221,7 +7221,8 @@ function renderPick() {
 /* ================= run + map ================= */
 function startRun() {
   TITLE_UP = false;
-  if (FUSION_ON() && choice.fuse && choice.fz) { const u = choice.fz.unit, lab = u.kind; party = [giveName(u, [])]; party[0].kind = lab; }
+  // The fused starter is a copy of the starter-screen preview, so a run never changes the preview (or the next run).
+  if (FUSION_ON() && choice.fuse && choice.fz) { const u = clone(choice.fz.unit), lab = u.kind; party = [giveName(u, [])]; party[0].kind = lab; }
   else party = [giveName(newSlime(choice.el, choice.cls))];
   const opts0 = [...PASSIVES[party[0].cls], ...(party[0].cls2 ? PASSIVES[party[0].cls2] : [])];   // fused starters can pick from both classes
   party[0].pas = opts0.some(x => x.id === choice.pas) ? choice.pas : opts0[0].id;
