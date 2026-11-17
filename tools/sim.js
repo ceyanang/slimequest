@@ -21,6 +21,7 @@ function runOnce(starter, fixed, stats){
       if(!fixed&&party.length<PARTY_MAX){const rc=opts.find(o=>o.type==='recruit'); if(rc) n=rc;}
       pos=n;
       if(n.type==='start') continue;
+      if(n.type==='fight'&&fixed&&!isMoon(w)) n={...n,foe:rollFoe(w)};   // the fixed-shape map was rolled for world 2: re-roll its enemy for this world
       if(n.type==='choice'){ n={...n,type:Math.random()<0.5?'fight':'recruit',foe:rollFoe(w)}; }
       if(n.type==='mystery'){ const r=rollMystery(); if(r==='ambush'){ n={...n,type:'fight',foe:rollFoe(w)}; } else if(r==='trap'){ party.forEach(p=>{ if(p.hp>0) p.hp=Math.max(1,p.hp-Math.round(p.max*0.15)); }); continue; } else n={...n,type:r}; }
       if(n.type==='fuse') continue;

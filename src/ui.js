@@ -142,6 +142,7 @@ function showUnitInfo(u) {
   const weak = mult.filter(x => x[1] > 1.01).sort((a, b) => b[1] - a[1]), res = mult.filter(x => x[1] < 0.99).sort((a, b) => a[1] - b[1]);
   const ml = list => list.length ? list.map(([e, m]) => `${etag(e)} <small>${m.toFixed(2).replace(/\.?0+$/, '')}x</small>`).join(' ') : '<small>none</small>';
   const ps = passiveOf(u), tricks = [];
+  if (u.quirk) tricks.push(`<b>Native to ${WORLDS[G ? G.w : 0].name}:</b> ${u.quirk}`);
   if (u.undying && !u.undyingUsed) tricks.push(`<b>${u.undying.title}:</b> gets back up once when knocked out.`);
   if (u.summon) tricks.push(`<b>${u.summon.title}:</b> calls in reinforcements every ${u.summon.every} rounds.`);
   if (u.phase && !u.phase.done) tricks.push(`<b>${u.phase.title}:</b> changes tactics at ${Math.round(u.phase.at * 100)}% HP.`);
