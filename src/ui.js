@@ -786,6 +786,7 @@ function statusTags(x) {
   if (x.burn) t.push(['BURN', '#f94144']);
   if (x.poison) t.push(['PSN', '#9b5de5']);
   if (x.stun) t.push(['STUN', '#f9c74f']);
+  if (x.dazed && !x.stun) t.push(['DAZED', '#b8a04a']);
   if (x.regen && x.regen.length) t.push([x.regen.length > 1 ? `REGEN x${x.regen.length}` : 'REGEN', '#90be6d']);
   if (x.para) t.push(['PARA', '#f9c74f']);
   if (x.blind) t.push(['BLIND', '#5a5078']);
