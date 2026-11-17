@@ -29,6 +29,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 - Realms: Realm 1 (Classic Quest), Realm 2 (Genre Hop, unlocked by clearing Realm 1; +50% enemy HP, +30% OFF), Realm 3 (World Domination, unlocked by clearing Realm 2; +60% HP, +35% OFF).
 - Realm 3 target: clearable by a 2-star team or a 3-star carry (sim: `R=2 SB=1.2 node tools/sim.js 300 mixed` about 25% clear, same as Realm 2 at 2 stars).
 - The Moon (Realm 3 world 8): full heal on arrival, Elite 4 back to back (tiles carry `gi` 0-3), one camp, then the Sun (gi 4). Only the usual after-fight revive/15% heal between Elite fights.
+- Realm 3 natives: each country (not the Moon) has 3 one-element creatures (`CREATURES`, `R3_NATIVE` in engine.js, 16x16 sprites `cr_*` in bossart3.js); about half of ordinary foes are natives (`NATIVE_RATE`), hyenas/penguins come in packs, natives never fuse.
 - Realm 3 boss tricks: `rang` (boomerang returns at round end), `rainbow` (move cycles elements), `abduct` (target can't act or be hit), `decree` (Executive Order), `fizzle` (move may fail), `heat` (Sun burns your side more each round), `art`/`small` (sidekick art size).
 - Stars: 10 points per star per slime, +1 star per realm cleared, max 10 points in one stat; a slime's own points spend first, shared pool last (refunded first).
 - Fusion (Realm 2+, starters after clearing Realm 2): multiclass with both elements and classes, averaged stats, random base parent gives moves, the other parent's moves are offered to learn. Pocket holds one slime essence for fusing.

@@ -121,6 +121,66 @@ const eb = (w, k, f = 1) => EB[k] * f * (1 + WSCALE[k] * w) * (k === 'hp' ? REAL
 // Generic monsters (brutes, goblins) still show up too.
 const GENERIC_ROLES = ['barb', 'goblin'];
 const FOE_ROLES = [...Object.keys(CLASSES), ...GENERIC_ROLES];
+// Realm 3 natives: each country has three creatures, each locked to one element, with two moves and one quirk.
+// About half of Realm 3's ordinary foes are natives (see rollFoe / makeFoes); they never fuse.
+const CREATURES = {
+  ninja:     { n:'Ninja', el:'dark', cat:'p', hp:0.8, off:1.1, spd:9, extra:{ first:true }, q:'Always strikes first.',
+               moves:[ { n:'Shuriken', el:'dark', cat:'p', pow:25, hits:2, s:25, t:'foe' }, { n:'Smoke Bomb', el:'dark', pow:0, s:25, t:'foes', blind:0.5 } ] },
+  kappa:     { n:'Kappa', el:'water', cat:'s', hp:1.0, off:1.0, spd:5, q:'Refills the water dish on its head to heal.',
+               moves:[ { n:'Water Jet', el:'water', cat:'s', pow:55, s:25, t:'foe' }, { n:'Head Dish', el:'water', pow:0, s:30, t:'self', healPct:0.2 } ] },
+  oni:       { n:'Oni', el:'fire', cat:'p', hp:1.15, off:1.1, spd:3, q:'Its club hits harder the more it\'s hurt.',
+               moves:[ { n:'Kanabo Club', el:'fire', cat:'p', pow:55, s:30, t:'foe', berserk:0.5 }, { n:'Demon Roar', el:'fire', pow:0, s:25, t:'foes', weaken:1 } ] },
+  guard:     { n:'Royal Guard', el:'light', cat:'p', d:[1.25, 1], hp:1.1, off:0.9, spd:3, q:'Stands guard: taunts and toughens up.',
+               moves:[ { n:'Stand Guard', el:'light', pow:0, s:30, t:'self', selfTaunt:2, armor:1 }, { n:'Bearskin Bonk', el:'light', cat:'p', pow:50, s:25, t:'foe', stun:0.2 } ] },
+  fogghost:  { n:'Fog Ghost', el:'dark', cat:'s', hp:0.8, off:1.0, spd:6, q:'Rolls in fog that blinds your team.',
+               moves:[ { n:'Pea-Souper', el:'dark', cat:'s', pow:25, s:30, t:'foes', blind:0.5 }, { n:'Spooky Wail', el:'dark', cat:'s', pow:50, s:25, t:'foe', confuse:0.2 } ] },
+  pigeon:    { n:'Angry Pigeon', el:'lightning', cat:'p', hp:0.6, off:1.0, spd:10, q:'Pecks three times and steals your snacks (stamina).',
+               moves:[ { n:'Peck Peck Peck', el:'lightning', cat:'p', pow:18, hits:3, s:25, t:'foe' }, { n:'Bread Thief', el:'lightning', cat:'p', pow:30, s:20, t:'foe', staDrain:25 } ] },
+  lion:      { n:'Lion', el:'earth', cat:'p', hp:1.0, off:1.2, spd:7, q:'Finishes off the wounded (+50% below 35% HP).',
+               moves:[ { n:'Maul', el:'earth', cat:'p', pow:55, s:30, t:'foe', execute:true }, { n:'Pounce', el:'earth', cat:'p', pow:40, s:20, t:'foe' } ] },
+  elephant:  { n:'Elephant', el:'earth', cat:'p', d:[1.2, 1], hp:1.6, off:0.9, spd:2, q:'A slow, huge tank that stomps everyone.',
+               moves:[ { n:'Stomp', el:'earth', cat:'p', pow:35, s:30, t:'foes', slow:1 }, { n:'Trunk Slam', el:'earth', cat:'p', pow:60, s:30, t:'foe' } ] },
+  hyena:     { n:'Hyena', el:'dark', cat:'p', hp:0.6, off:0.9, spd:8, pack:true, q:'Hunts in packs.',
+               moves:[ { n:'Dirty Bite', el:'dark', cat:'p', pow:35, s:20, t:'foe', poison:0.4 }, { n:'Cackle', el:'dark', cat:'p', pow:40, s:25, t:'foe', bonusVs:'poison' } ] },
+  kangaroo:  { n:'Kangaroo', el:'earth', cat:'p', hp:1.0, off:1.0, spd:7, q:'Puts its dukes up and counter-punches.',
+               moves:[ { n:'Boxing Stance', el:'earth', pow:0, s:25, t:'self', counter:{ pow:55 } }, { n:'Double Jab', el:'earth', cat:'p', pow:28, hits:2, s:25, t:'foe' } ] },
+  dropbear:  { n:'Drop Bear', el:'dark', cat:'p', hp:0.8, off:1.1, spd:6, extra:{ first:true }, q:'Drops from the trees first, often stunning.',
+               moves:[ { n:'Ambush Drop', el:'dark', cat:'p', pow:45, s:30, t:'foe', stun:0.2 }, { n:'Gnaw', el:'dark', cat:'p', pow:40, s:20, t:'foe', poison:0.3 } ] },
+  emu:       { n:'Emu', el:'lightning', cat:'p', hp:0.8, off:1.0, spd:10, q:'Very fast; its kicks and feathers paralyze.',
+               moves:[ { n:'Emu War Kick', el:'lightning', cat:'p', pow:28, hits:2, s:25, t:'foe', para:0.15 }, { n:'Static Feathers', el:'lightning', cat:'s', pow:25, s:30, t:'foes', para:0.25 } ] },
+  penguin:   { n:'Penguin', el:'water', cat:'p', hp:0.8, off:1.0, spd:8, pack:true, q:'Waddles in groups and belly-slides through everyone.',
+               moves:[ { n:'Belly Slide', el:'water', cat:'p', pow:30, s:25, t:'foes' }, { n:'Fish Slap', el:'water', cat:'p', pow:45, s:20, t:'foe' } ] },
+  icegolem:  { n:'Ice Golem', el:'water', cat:'p', d:[1.2, 1.1], hp:1.4, off:0.95, spd:2, q:'Slow and frosty: freezes and shields itself.',
+               moves:[ { n:'Freeze Punch', el:'water', cat:'p', pow:45, s:30, t:'foe', stun:0.35 }, { n:'Frost Armor', el:'water', pow:0, s:30, t:'self', shieldPct:0.2 } ] },
+  seal:      { n:'Leopard Seal', el:'water', cat:'p', hp:1.1, off:1.1, spd:5, q:'Bites frozen or stunned prey extra hard.',
+               moves:[ { n:'Big Bite', el:'water', cat:'p', pow:55, s:30, t:'foe', bonusVs:'stun' }, { n:'Flop', el:'water', cat:'p', pow:30, s:25, t:'foes' } ] },
+  frog:      { n:'Poison Frog', el:'life', cat:'s', hp:0.7, off:1.0, spd:7, item:'thorns', q:'Toxic skin: hitting it hurts you back.',
+               moves:[ { n:'Toxic Tongue', el:'life', cat:'s', pow:40, s:25, t:'foe', poison:0.6 }, { n:'Lily Leap', el:'life', cat:'s', pow:45, s:20, t:'foe' } ] },
+  jaguar:    { n:'Jaguar', el:'dark', cat:'p', hp:0.9, off:1.15, spd:9, crit:0.2, q:'Stalks from the shadows: lots of critical hits.',
+               moves:[ { n:'Shadow Pounce', el:'dark', cat:'p', pow:55, s:30, t:'foe', critBonus:0.2 }, { n:'Rake', el:'dark', cat:'p', pow:25, hits:2, s:20, t:'foe' } ] },
+  parrot:    { n:'Parrot', el:'psychic', cat:'s', hp:0.7, off:1.0, spd:9, q:'Copies the last move your team used.',
+               moves:[ { n:'Polly Want a Move', el:'psychic', pow:0, s:30, t:'self', spoiler:true }, { n:'Squawk', el:'psychic', cat:'s', pow:45, s:25, t:'foe', confuse:0.3 } ] },
+  eagle:     { n:'Bald Eagle', el:'lightning', cat:'p', hp:0.8, off:1.1, spd:10, q:'Dives from the sky and snatches slimes.',
+               moves:[ { n:'Dive Bomb', el:'lightning', cat:'p', pow:60, s:30, t:'foe' }, { n:'Talon Grab', el:'lightning', cat:'p', pow:35, s:25, t:'foe', stun:0.25 } ] },
+  linebacker:{ n:'Linebacker', el:'earth', cat:'p', d:[1.2, 0.9], hp:1.2, off:1.0, spd:5, q:'Tackles hard enough to stun.',
+               moves:[ { n:'Tackle', el:'earth', cat:'p', pow:55, s:30, t:'foe', stun:0.35 }, { n:'Blitz', el:'earth', cat:'p', pow:30, s:30, t:'foes' } ] },
+  tourist:   { n:'Tourist', el:'light', cat:'s', hp:0.9, off:0.95, spd:5, q:'Camera flashes blind you; asking for directions stuns you.',
+               moves:[ { n:'Camera Flash', el:'light', cat:'s', pow:20, s:25, t:'foes', blind:0.5 }, { n:'Ask for Directions', el:'light', pow:0, s:25, t:'foe', stun:0.5 } ] }
+};
+const R3_NATIVE = [['ninja', 'kappa', 'oni'], ['guard', 'fogghost', 'pigeon'], ['lion', 'elephant', 'hyena'], ['kangaroo', 'dropbear', 'emu'],
+                   ['penguin', 'icegolem', 'seal'], ['frog', 'jaguar', 'parrot'], ['eagle', 'linebacker', 'tourist']];
+const NATIVE_RATE = 0.5;
+const nativesOf = w => REALM === 2 ? R3_NATIVE[w] || null : null;
+const crId = role => role && role.startsWith('cr_') ? role.slice(3) : null;
+function creatureEnemy(w, L, id) {
+  const C = CREATURES[id];
+  const u = mkUnit({ side:'E', name:C.n, el:C.el, spr:[['cr_' + id]], lvl:L, ecat:C.cat, dmul:C.d || [1, 1], creature:id, quirk:C.q,
+    base:{ hp:eb(w, 'hp', C.hp), off:eb(w, 'off', C.off), def:eb(w, 'def'), spd:C.spd, sta:80 }, crit:C.crit || 0.05,
+    moves:[clone(STRIKE), ...C.moves.map(clone)] });
+  if (C.extra) Object.assign(u, C.extra);
+  if (C.item) u.item = C.item;
+  return u;
+}
 // Humans have full kits, so their stats run a bit lower; early worlds are gentler.
 const humanPower = w => 0.97 + 0.016 * w;
 // Classes whose AOE kits hit the whole party get weaker as enemies.
@@ -137,6 +197,7 @@ function classEnemy(w, L, el, cls, f = 1) {
     basic:tagCat({ ...clone(BASIC[cls]), el:BASIC[cls].el === 'self' ? el : BASIC[cls].el, tag:'Basic' }, cls), moves:known.slice(-4) });
 }
 function normalEnemy(w, L, el = pick(WORLDS[w].els), role = pick(FOE_ROLES)) {
+  if (crId(role)) return creatureEnemy(w, L, crId(role));
   if (CLASSES[role]) return classEnemy(w, L, el, role, FOE_MUL[role] || 1);
   const moves = [clone(STRIKE), clone(E_MOVE[el])];
   if (w >= 2) moves.push(clone(E_HEAVY[el]));
@@ -556,7 +617,10 @@ function makeFoes(w, node, partySize) {
     const n = Math.min(3, f === 0 ? Math.min(size, w === 0 ? 1 : 2) : size + (f >= 4 && Math.random() < 0.3 ? 1 : 0));
     // The map previews the lead enemy; teammates usually share its element.
     const pv = node.foe;
+    const nat = nativesOf(w), pack = pv && crId(pv.role) && CREATURES[crId(pv.role)].pack ? crId(pv.role) : null;
     foes = Array.from({ length:n }, (_, i) => pv && i === 0 ? normalEnemy(w, L, pv.el, pv.role)
+      : pack ? creatureEnemy(w, L, pack)   // hyenas and penguins come in packs
+      : nat && Math.random() < NATIVE_RATE ? creatureEnemy(w, L, pick(nat))
       : normalEnemy(w, L, pv && Math.random() < 0.6 ? pv.el : pick(WORLDS[w].els)));
     if (REALM >= 1) foes.forEach(f => { if (Math.random() < FOE_FUSE) fuseFoe(f, w); });   // Realm 2+ brings dual-element enemies
   }
@@ -1237,7 +1301,11 @@ function rollType(f) {
   for (const [k, p] of odds) { if (r < p) { t = k; break; } r -= p; }
   return t === 'elite' && f < 2 ? 'fight' : t;
 }
-function rollFoe(w) { return { el:pick(WORLDS[w].els), role:pick(FOE_ROLES) }; }
+function rollFoe(w) {
+  const nat = nativesOf(w);
+  if (nat && Math.random() < NATIVE_RATE) { const id = pick(nat); return { el:CREATURES[id].el, role:'cr_' + id }; }
+  return { el:pick(WORLDS[w].els), role:pick(FOE_ROLES) };
+}
 function genMap(w) {
   if (isMoon(w)) return moonMap();
   const rows = MAP_ROWS.map((n, f) => Array.from({ length:n }, (_, c) => ({ f, c, type:'fight', next:[], visited:false })));
@@ -1356,7 +1424,7 @@ function wildFused(team) {
 }
 // Dual-element enemy: a second element and a few of its moves.
 function fuseFoe(u, w) {
-  const pool = WORLDS[w].els.filter(e => e !== u.el); if (!pool.length || u.boss || u.el2) return;
+  const pool = WORLDS[w].els.filter(e => e !== u.el); if (!pool.length || u.boss || u.el2 || u.creature) return;
   const el2 = pick(pool); u.el2 = el2; u.name = `${ADJ[el2]}-${u.name}`;
   if (u.cls && u.cls === u.role) { const k2 = learnset(el2, u.cls).filter(x => x.lvl <= u.lvl && !x.m.passive).map(x => clone(x.m)); u.moves = [...u.moves.slice(-2), ...k2.slice(-2)]; }
   else { u.moves.push(clone(E_MOVE[el2])); if (w >= 2 && E_HEAVY[el2]) u.moves.push(clone(E_HEAVY[el2])); }
