@@ -34,12 +34,12 @@ const CLASSES = {
   fighter:{ name:'Fighter', hp:54, off:11.5, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
   cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
   mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
-  monk:   { name:'Monk',    hp:46, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
+  monk:   { name:'Monk',    hp:49, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
   bulwark:{ name:'Bulwark', hp:78, off:10.8, pdef:15, sdef:12, spd:3.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
   bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
-  ranger: { name:'Ranger',  hp:50, off:10, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
+  ranger: { name:'Ranger',  hp:50, off:10.5, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
   sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
-  rogue:  { name:'Rogue',   hp:48, off:11.9, pdef:8, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
+  rogue:  { name:'Rogue',   hp:52, off:11.9, pdef:9, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
 };
 /* ---- class passives: a starter picks one of its class's two, recruits roll one at random ---- */
 const PASSIVES = {
@@ -85,7 +85,7 @@ const EL_STATS = {
   lightning: { hp:+0.5, off:+1, pdef:+0, sdef:+0, spd:+1.75, sta:0,  desc:'Fast and tricky: paralyzes, hastes allies' },
   earth: { hp:+1, off:+1, pdef:+1.5, sdef:-0.5, spd:-1.5, sta:-1, desc:'Tough, solid and strong, but sluggish' },
   light:   { hp:+0.5, off:0,  pdef:+0, sdef:+0.75,  spd:-1, sta:-1, desc:'Strong protector: shields, heals, and attacks that mend allies' },
-  dark:    { hp:+0.5,  off:+1.5, pdef:+0, sdef:+0,  spd:+0.75, sta:-0.5, desc:'Ruthless offense: hits hard, blinds foes, veils allies' },
+  dark:    { hp:+1,  off:+1.5, pdef:+0, sdef:+0,  spd:+0.75, sta:-0.5, desc:'Ruthless offense: hits hard, blinds foes, veils allies' },
   psychic: { hp:0,  off:0,  pdef:+0, sdef:+0.5,  spd:+1,  sta:+0.5, desc:'Fast controller: confusion and stamina drain, usually first to act' }
 };
 // Element steps: each step is +/-10% for HP, OFF, DEF and SPE, or +/-12 for stamina.
