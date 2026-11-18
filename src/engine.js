@@ -1483,12 +1483,12 @@ function boostPlan(m) {
     if (plus) return P(`${plus} becomes ${plus}+`, () => { m[plus + 'P'] = true; });
   }
   if (hostile) for (const [k, lab] of [['weaken', 'OFF'], ['expose', 'DEF'], ['slow', 'SPE']]) if (m[k] && m[k] < 3) return P(`lowers ${lab} 1 more stage`, () => { m[k] += 1; });
-  if (m.healPct) return P('+5% heal', () => { m.healPct = r2(m.healPct + 0.05); });
-  if (m.shieldPct) return P('+5% shield', () => { m.shieldPct = r2(m.shieldPct + 0.05); });
-  if (m.regen) return P('+2% regen', () => { m.regen[0] = r2(m.regen[0] + 0.02); });
+  if (m.healPct) return P('heal x1.25', () => { m.healPct = r2(m.healPct * 1.25); });   // support amounts grow by 25% of themselves
+  if (m.shieldPct) return P('shield x1.25', () => { m.shieldPct = r2(m.shieldPct * 1.25); });
+  if (m.regen) return P('regen x1.25', () => { m.regen[0] = Math.round(m.regen[0] * 1.25 * 1000) / 1000; });
   if (m.revive) return P('+10% revive HP', () => { m.revive = r2(m.revive + 0.1); });
   if (m.offUp) return P('+1 OFF stage', () => { m.offUp += 1; });
-  if (m.staGain) return P('+10 STA given', () => { m.staGain += 10; });
+  if (m.staGain) return P('STA given x1.25', () => { m.staGain = Math.round(m.staGain * 1.25); });
   if (m.staDrain) return P('+10 STA drained', () => { m.staDrain += 10; });
   if (m.s >= 20) return P('-5 STA cost', () => { m.s -= 5; });
   return P('everything improves', () => boostAll(m));
