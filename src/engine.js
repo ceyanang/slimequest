@@ -3,11 +3,11 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = n => 1 + Math.floor(Math.random() * n);
 const alive = arr => arr.filter(u => u.hp > 0);
 
-function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, burnP:false, poisonP:false, paraP:false, blindP:false, confuseP:false, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
+function resetStatus(x) { Object.assign(x, { endureUsed:false, _koBy:false, _ua:false, sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, burnP:false, poisonP:false, paraP:false, blindP:false, confuseP:false, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
 // Speed after paralysis (-25%) and speed stages; used for turn order.
 const has = (u, id) => u.item === id;
 const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0, u) * (has(u, 'badge') ? 1.5 : 1);
-const critOf = (a, m) => a.crit + (m.critBonus || 0) + Math.max(0, a.sSpd || 0) * 0.05 + (has(a, 'clover') ? 0.15 : 0);
+const critOf = (a, m) => a.crit + (m.critBonus || 0) + ((ultraPerk(a) || {}).crit || 0) + Math.max(0, a.sSpd || 0) * 0.05 + (has(a, 'clover') ? 0.15 : 0);
 // Status chance after items: Alchemy Book boosts yours, Heavy Duty Armor resists control effects.
 const CONTROL = { stun:1, para:1, blind:1, confuse:1 };
 const ch = (a, d, p, k) => k === 'stun' && (hasPas(d, 'bedrock') || d.dazed) ? 0 : p * (k === 'stun' ? STUN_MULT : 1) * (a.pas === 'trap' ? 2 : 1) * (has(a, 'book') ? 1.25 : 1) * (CONTROL[k] && has(d, 'armor') ? 0.75 : 1);
@@ -669,6 +669,7 @@ function calcDmg(a, d, m, eff, crit) {
   if (hasPas(d, 'mountain') && m.t === 'foes') v *= 0.75;
   if (hasPas(d, 'mindwall') && sp) v *= 0.75;
   if (hasPas(a, 'grudge') && a.hp < a.max / 2) v *= 1.25;
+  v *= ultraDmgMul(a, d, m, sp);
   return Math.max(1, Math.round(v));
 }
 function resolveTargets(a, m, target, allies, foes) {
@@ -772,6 +773,183 @@ function effMove(a, m) {
   return r;
 }
 // Start-of-fight passives. Call once after resetStatus and makeFoes.
+/* ================= Ultra forms =================
+   A rare map tile turns one slime Ultra for the rest of the run: +35% stats, boosted gear with an elemental aura,
+   and a hand-made perk for its element+class combo (fused slimes pick one of their parents' perks).
+   Perk effects (all optional):
+     start: fight-start  { selfShield, teamShield, offUp, teamOffUp, haste, teamHaste, teamDef, teamRegen:[pct,turns], veil, foeWeaken, foeSlow }
+     round: end of round { heal, healHurt, teamHeal, teamSta, shield }
+     hit:   on each landed hit { burn, poison, para, blind, confuse, stun, slow, expose, weaken (chances), burnP/poisonP/paraP/blindP, leech, mend, teamLeech, staDrain }
+     hurt:  when hit by an attack { reflect, burn, para, confuse (chances on the attacker) }
+     dmg:   damage dealt x mult when { aoe, single, first, status, burn, poison, slowed, blinded, foeLow, lowhp }
+     taken: damage taken x mult when { physical, special, aoe, highhp }
+     kill:  { heal, sta, offUp }   crit: extra crit chance   endure: survives one knockout per fight at 1 HP */
+const ULTRA_STAT = 1.35;
+const ULTRA_PERKS = {
+  // Fire: offense and burns
+  fire_fighter:   { n:'Blazing Valor', d:'Starts each fight with +25% OFF. Its hits have a 25% chance to burn.', start:{ offUp:1 }, hit:{ burn:0.25 } },
+  fire_cleric:    { n:'Cauterize', d:'Each round, heals the most hurt ally 6%. Its hits have a 20% chance to burn.', round:{ healHurt:0.06 }, hit:{ burn:0.2 } },
+  fire_mage:      { n:'Wildfire', d:'+25% damage to burning foes. Its hits have a 30% chance to burn.', dmg:{ burn:1.25 }, hit:{ burn:0.3 } },
+  fire_monk:      { n:'Fire Fists', d:'Its hits have a 25% chance to burn, and heal the most hurt ally for 10% of the damage.', hit:{ burn:0.25, mend:0.1 } },
+  fire_bulwark:   { n:'Magma Plating', d:'Starts each fight with a 20% shield. Attackers have a 30% chance to be burned.', start:{ selfShield:0.2 }, hurt:{ burn:0.3 } },
+  fire_bard:      { n:'Encore of Embers', d:'The whole team starts each fight with +25% OFF.', start:{ teamOffUp:1 } },
+  fire_ranger:    { n:'Flaming Arrows', d:'Its hits have a 30% chance to inflict burn+. +10% crit chance.', hit:{ burn:0.3, burnP:true }, crit:0.1 },
+  fire_sorcerer:  { n:'Inferno Core', d:'+25% damage with attacks that hit all foes.', dmg:{ aoe:1.25 } },
+  fire_rogue:     { n:'Ember Assassin', d:'+15% crit chance. Each knockout raises its OFF by 25%.', crit:0.15, kill:{ offUp:1 } },
+  // Water: bulky speed, sustain, stamina
+  water_fighter:  { n:'Riptide', d:'Its hits have a 30% chance to slow. Heals 4% each round.', hit:{ slow:0.3 }, round:{ heal:0.04 } },
+  water_cleric:   { n:'Wellspring Grace', d:'Each round, heals the most hurt ally 8%.', round:{ healHurt:0.08 } },
+  water_mage:     { n:'Undertow', d:'+25% damage to slowed foes. Its hits drain 10 STA.', dmg:{ slowed:1.25 }, hit:{ staDrain:10 } },
+  water_monk:     { n:'Flowing Form', d:'Takes 25% less physical damage. Its hits heal the most hurt ally for 15% of the damage.', taken:{ physical:0.75 }, hit:{ mend:0.15 } },
+  water_bulwark:  { n:'Tidal Fortress', d:'The whole team starts each fight with a 10% shield. Gains a 5% shield each round.', start:{ teamShield:0.1 }, round:{ shield:0.05 } },
+  water_bard:     { n:'Ocean Hymn', d:'Each round, the whole team regains 10 STA.', round:{ teamSta:10 } },
+  water_ranger:   { n:'Tideshot', d:'Its hits have a 25% chance to slow. +25% damage to slowed foes.', hit:{ slow:0.25 }, dmg:{ slowed:1.25 } },
+  water_sorcerer: { n:'Maelstrom Mind', d:'Its hits drain 10 STA. Takes 25% less special damage.', hit:{ staDrain:10 }, taken:{ special:0.75 } },
+  water_rogue:    { n:'Slipstream', d:'Starts each fight with +50% SPE and a veil (attacks may miss it).', start:{ haste:2, veil:1 } },
+  // Life: sustain and spreading poison
+  life_fighter:   { n:'Evergreen', d:'Heals 6% each round.', round:{ heal:0.06 } },
+  life_cleric:    { n:'Bloom', d:'The whole team starts each fight with 8% regen for 3 rounds.', start:{ teamRegen:[0.08, 3] } },
+  life_mage:      { n:'Overgrowth', d:'Its hits have a 30% chance to poison and drain 15% of the damage as HP.', hit:{ poison:0.3, leech:0.15 } },
+  life_monk:      { n:'Photosynthesis Palm', d:'Its hits heal the most hurt ally for 20% of the damage.', hit:{ mend:0.2 } },
+  life_bulwark:   { n:'Ancient Oak', d:'Survives one knockout each fight with 1 HP. Heals 5% each round.', endure:true, round:{ heal:0.05 } },
+  life_bard:      { n:'Song of Spring', d:'The whole team starts each fight with 6% regen for 4 rounds.', start:{ teamRegen:[0.06, 4] } },
+  life_ranger:    { n:'Thornshot', d:'Its hits have a 35% chance to inflict poison+.', hit:{ poison:0.35, poisonP:true } },
+  life_sorcerer:  { n:'Verdant Surge', d:'Its hits drain 20% of the damage as HP.', hit:{ leech:0.2 } },
+  life_rogue:     { n:'Venom Bloom', d:'Its hits have a 25% chance to poison. +25% damage to poisoned foes.', hit:{ poison:0.25 }, dmg:{ poison:1.25 } },
+  // Lightning: speed, paralysis, opening strikes
+  lightning_fighter:  { n:'Thunder Charge', d:'Starts each fight with +25% SPE. Its first attack each fight deals +50% damage.', start:{ haste:1 }, dmg:{ first:1.5 } },
+  lightning_cleric:   { n:'Static Renewal', d:'Each round, the whole team regains 10 STA. Its hits have a 20% chance to paralyze.', round:{ teamSta:10 }, hit:{ para:0.2 } },
+  lightning_mage:     { n:'Overload', d:'Its hits have a 30% chance to inflict paralysis+.', hit:{ para:0.3, paraP:true } },
+  lightning_monk:     { n:'Lightning Reflexes', d:'Starts each fight with +25% SPE. Takes 25% less physical damage.', start:{ haste:1 }, taken:{ physical:0.75 } },
+  lightning_bulwark:  { n:'Grounding Rod', d:'Takes 25% less special damage. Attackers have a 30% chance to be paralyzed.', taken:{ special:0.75 }, hurt:{ para:0.3 } },
+  lightning_bard:     { n:'Electric Tempo', d:'The whole team starts each fight with +25% SPE.', start:{ teamHaste:1 } },
+  lightning_ranger:   { n:'Arc Shot', d:'Its hits have a 30% chance to paralyze. +10% crit chance.', hit:{ para:0.3 }, crit:0.1 },
+  lightning_sorcerer: { n:'Storm Heart', d:'+25% damage with attacks that hit all foes. Its hits have a 15% chance to paralyze.', dmg:{ aoe:1.25 }, hit:{ para:0.15 } },
+  lightning_rogue:    { n:'Flash Step', d:'Starts each fight with +50% SPE. Its first attack each fight deals +50% damage.', start:{ haste:2 }, dmg:{ first:1.5 } },
+  // Earth: toughness and heavy single blows
+  earth_fighter:  { n:'Stone Skin', d:'Takes 25% less damage while above half HP.', taken:{ highhp:0.75 } },
+  earth_cleric:   { n:'Mountain Blessing', d:'The whole team starts each fight with a 12% shield.', start:{ teamShield:0.12 } },
+  earth_mage:     { n:'Tectonic Focus', d:'+25% damage with single-target attacks. Its hits have a 20% chance to slow.', dmg:{ single:1.25 }, hit:{ slow:0.2 } },
+  earth_monk:     { n:'Iron Palm', d:'Its hits have a 25% chance to lower DEF, and heal the most hurt ally for 10% of the damage.', hit:{ expose:0.25, mend:0.1 } },
+  earth_bulwark:  { n:'Unbreakable', d:'Survives one knockout each fight with 1 HP. Takes 25% less damage from attacks that hit all foes.', endure:true, taken:{ aoe:0.75 } },
+  earth_bard:     { n:'Drums of the Deep', d:'The whole team starts each fight with +25% DEF and SpD.', start:{ teamDef:1 } },
+  earth_ranger:   { n:'Boulder Bolts', d:'Its hits have a 10% chance to stun and a 20% chance to slow.', hit:{ stun:0.1, slow:0.2 } },
+  earth_sorcerer: { n:'Quake Core', d:'+25% damage with attacks that hit all foes. Takes 25% less physical damage.', dmg:{ aoe:1.25 }, taken:{ physical:0.75 } },
+  earth_rogue:    { n:'Rockfall Ambush', d:'Its first attack each fight deals +50% damage. +10% crit chance.', dmg:{ first:1.5 }, crit:0.1 },
+  // Light: protection and healing
+  light_fighter:  { n:'Dawnblade', d:'Its hits heal the most hurt ally for 25% of the damage. Heals the most hurt ally 4% each round.', hit:{ mend:0.25 }, round:{ healHurt:0.04 } },
+  light_cleric:   { n:'Sanctified', d:'The whole team starts each fight with a 10% shield. Each round, heals the most hurt ally 6%.', start:{ teamShield:0.1 }, round:{ healHurt:0.06 } },
+  light_mage:     { n:'Radiant Lens', d:'Its hits have a 30% chance to blind. +25% damage to foes with any ailment.', hit:{ blind:0.3 }, dmg:{ status:1.25 } },
+  light_monk:     { n:'Inner Sun', d:'Its hits heal the most hurt ally for 25% of the damage.', hit:{ mend:0.25 } },
+  light_bulwark:  { n:'Aegis Eternal', d:'The whole team starts each fight with a 15% shield.', start:{ teamShield:0.15 } },
+  light_bard:     { n:'Hymn of Dawn', d:'Each round, heals the whole team 4%.', round:{ teamHeal:0.04 } },
+  light_ranger:   { n:'Sunpiercer', d:'+15% crit chance. Its hits have a 20% chance to blind.', crit:0.15, hit:{ blind:0.2 } },
+  light_sorcerer: { n:'Solar Crown', d:'Its hits heal the whole team for 10% of the damage.', hit:{ teamLeech:0.1 } },
+  light_rogue:    { n:'Blinding Edge', d:'Its hits have a 35% chance to inflict blind+.', hit:{ blind:0.35, blindP:true } },
+  // Dark: drains and executions
+  dark_fighter:   { n:'Blood Oath', d:'Its hits drain 20% of the damage as HP. +25% damage while below half HP.', hit:{ leech:0.2 }, dmg:{ lowhp:1.25 } },
+  dark_cleric:    { n:'Unholy Mending', d:'Its hits drain 25% of the damage as HP. Each round, heals the most hurt ally 4%.', hit:{ leech:0.25 }, round:{ healHurt:0.04 } },
+  dark_mage:      { n:'Void Hunger', d:'+25% damage to foes below half HP. Each knockout restores 15% HP and 30 STA.', dmg:{ foeLow:1.25 }, kill:{ heal:0.15, sta:30 } },
+  dark_monk:      { n:'Shadow Communion', d:'Its hits heal the most hurt ally for 20% of the damage and have a 15% chance to blind.', hit:{ mend:0.2, blind:0.15 } },
+  dark_bulwark:   { n:'Spite Armor', d:'Attackers take 20% of the damage they deal to it back.', hurt:{ reflect:0.2 } },
+  dark_bard:      { n:'Dirge', d:'Every foe starts each fight with -25% OFF.', start:{ foeWeaken:1 } },
+  dark_ranger:    { n:'Nightstalker', d:'+15% crit chance. +25% damage to foes below half HP.', crit:0.15, dmg:{ foeLow:1.25 } },
+  dark_sorcerer:  { n:'Eclipse Core', d:'+25% damage with attacks that hit all foes. Its hits drain 10% of the damage as HP.', dmg:{ aoe:1.25 }, hit:{ leech:0.1 } },
+  dark_rogue:     { n:'Executioner', d:'+25% damage to foes below half HP. Each knockout raises its OFF by 25%.', dmg:{ foeLow:1.25 }, kill:{ offUp:1 } },
+  // Psychic: control and stamina
+  psychic_fighter:  { n:'Mind Over Matter', d:'Takes 25% less special damage. Its hits have a 15% chance to confuse.', taken:{ special:0.75 }, hit:{ confuse:0.15 } },
+  psychic_cleric:   { n:'Clarity', d:'Each round, the whole team regains 10 STA and the most hurt ally heals 4%.', round:{ teamSta:10, healHurt:0.04 } },
+  psychic_mage:     { n:'Mindbreak', d:'+25% damage to foes with any ailment. Its hits have a 20% chance to confuse.', dmg:{ status:1.25 }, hit:{ confuse:0.2 } },
+  psychic_monk:     { n:'Third Eye', d:'Takes 25% less physical damage. Its hits drain 10 STA.', taken:{ physical:0.75 }, hit:{ staDrain:10 } },
+  psychic_bulwark:  { n:'Psychic Barrier', d:'Starts each fight with a 25% shield. Attackers have a 20% chance to be confused.', start:{ selfShield:0.25 }, hurt:{ confuse:0.2 } },
+  psychic_bard:     { n:'Mesmerize', d:'Every foe starts each fight with -25% SPE.', start:{ foeSlow:1 } },
+  psychic_ranger:   { n:'Precog Shot', d:'+20% crit chance.', crit:0.2 },
+  psychic_sorcerer: { n:'Psionic Storm', d:'+25% damage with attacks that hit all foes. Its hits have a 15% chance to confuse.', dmg:{ aoe:1.25 }, hit:{ confuse:0.15 } },
+  psychic_rogue:    { n:'Mind Thief', d:'Its hits drain 15 STA. Its first attack each fight deals +50% damage.', hit:{ staDrain:15 }, dmg:{ first:1.5 } }
+};
+const ultraPerk = u => u && u.ultra ? ULTRA_PERKS[u.ultra] || null : null;
+// The combos a slime can take its Ultra perk from: its own, or (fused) either parent's.
+const ultraChoices = u => u.parents ? [...new Set(u.parents.map(([e, c]) => e + '_' + c))] : [u.el + '_' + u.cls];
+function makeUltra(u, key) {
+  u.ultra = key; u.name = u.name.startsWith('Ultra ') ? u.name : 'Ultra ' + u.name;
+  ['hp', 'off', 'pdef', 'sdef', 'spd'].forEach(k => { u.base[k] *= ULTRA_STAT; });
+  const frac = u.max ? Math.max(0, u.hp) / u.max : 1; derive(u); u.hp = Math.max(1, Math.round(u.max * frac));
+  return u;
+}
+
+// Perk hooks (no-ops for units without a perk).
+function ultraStart(team, foes) {
+  team.forEach(u => { const P = ultraPerk(u); if (!P || !P.start || u.hp <= 0) return; const s = P.start, al = alive(team);
+    if (s.selfShield) u.shield += Math.round(u.max * s.selfShield);
+    if (s.teamShield) al.forEach(o => { o.shield += Math.round(o.max * s.teamShield); });
+    if (s.offUp) stage(u, 'sOff', s.offUp);
+    if (s.teamOffUp) al.forEach(o => stage(o, 'sOff', s.teamOffUp));
+    if (s.haste) stage(u, 'sSpd', s.haste);
+    if (s.teamHaste) al.forEach(o => stage(o, 'sSpd', s.teamHaste));
+    if (s.teamDef) al.forEach(o => { stage(o, 'sDef', s.teamDef); stage(o, 'sSDef', s.teamDef); });
+    if (s.teamRegen) al.forEach(o => { o.regen = [...(o.regen || []), s.teamRegen.slice()]; });
+    if (s.veil) u.veil = Math.max(u.veil || 0, s.veil + 1);
+    if (s.foeWeaken) alive(foes).forEach(o => stage(o, 'sOff', -s.foeWeaken));
+    if (s.foeSlow) alive(foes).forEach(o => stage(o, 'sSpd', -s.foeSlow));
+    u._ua = false;
+  });
+}
+function ultraRound(x, L) {
+  const P = ultraPerk(x); if (!P || !P.round || x.hp <= 0) return; const r = P.round, team = x.teamRef || [x];
+  if (r.heal) { const h = heal(x, x.max * r.heal); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
+  if (r.shield) x.shield += Math.round(x.max * r.shield);
+  if (r.healHurt) { const w = alive(team).sort((p, q) => p.hp / p.max - q.hp / q.max)[0]; if (w && w.hp < w.max) { const h = heal(w, w.max * r.healHurt); if (h) fx({ u:w, k:'heal', v:h, small:true }); } }
+  if (r.teamHeal) alive(team).forEach(o => { const h = heal(o, o.max * r.teamHeal); if (h) fx({ u:o, k:'heal', v:h, small:true }); });
+  if (r.teamSta) alive(team).forEach(o => { o.sta = Math.min(o.staMax, o.sta + r.teamSta); });
+}
+const ULTRA_ST = [['burn', 3], ['poison', 4], ['para', 3], ['blind', 3], ['confuse', 3]];
+function ultraHit(a, d, m, dmg, allies, fl) {
+  const P = ultraPerk(a); if (!P || !P.hit || dmg <= 0) return; const h = P.hit;
+  if (d.hp > 0) {
+    ULTRA_ST.forEach(([k, n]) => { if (h[k] && !d[k] && Math.random() < ch(a, d, h[k], k)) { d[k] = n; d[k + 'P'] = !!h[k + 'P']; fl.push(`${k}${h[k + 'P'] ? '+' : ''} (ultra)`); } });
+    if (h.stun && !d.stun && Math.random() < ch(a, d, h.stun, 'stun')) { d.stun = 1; fl.push('stunned (ultra)'); }
+    if (h.slow && Math.random() < h.slow) stage(d, 'sSpd', -1);
+    if (h.expose && Math.random() < h.expose) stage(d, 'sDef', -1);
+    if (h.weaken && Math.random() < h.weaken) stage(d, 'sOff', -1);
+    if (h.staDrain) { const v = Math.min(d.sta, h.staDrain); d.sta -= v; }
+  }
+  if (h.leech) heal(a, dmg * h.leech);
+  if (h.mend) { const w = alive(allies).sort((p, q) => p.hp / p.max - q.hp / q.max)[0]; if (w) heal(w, dmg * h.mend); }
+  if (h.teamLeech) alive(allies).forEach(o => heal(o, dmg * h.teamLeech));
+}
+function ultraHurt(d, a, dmg, fl) {   // returns damage reflected to the attacker
+  const P = ultraPerk(d); if (!P || !P.hurt || dmg <= 0) return 0; const h = P.hurt; let r = 0;
+  if (h.reflect) { r = Math.max(1, Math.round(dmg * h.reflect)); a.hp -= r; }
+  [['burn', 3], ['para', 3], ['confuse', 3]].forEach(([k, n]) => { if (h[k] && !a[k] && Math.random() < h[k]) { a[k] = n; a[k + 'P'] = false; fl.push(`${nm(a)} ${k} (ultra)`); } });
+  return r;
+}
+function ultraKill(a) {
+  const P = ultraPerk(a); if (!P || !P.kill || a.hp <= 0) return; const k = P.kill;
+  if (k.heal) heal(a, a.max * k.heal);
+  if (k.sta) a.sta = Math.min(a.staMax, a.sta + k.sta);
+  if (k.offUp) stage(a, 'sOff', k.offUp);
+}
+const hasAilment = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
+function ultraDmgMul(a, d, m, sp) {
+  let v = 1; const A = ultraPerk(a), D = ultraPerk(d);
+  if (A && A.dmg) { const g = A.dmg;
+    if (g.aoe && m.t === 'foes') v *= g.aoe;
+    if (g.single && m.t === 'foe') v *= g.single;
+    if (g.first && a._uaNow) v *= g.first;
+    if (g.status && hasAilment(d)) v *= g.status;
+    if (g.burn && d.burn) v *= g.burn;
+    if (g.poison && d.poison) v *= g.poison;
+    if (g.slowed && d.sSpd < 0) v *= g.slowed;
+    if (g.blinded && d.blind) v *= g.blinded;
+    if (g.foeLow && d.hp < d.max / 2) v *= g.foeLow;
+    if (g.lowhp && a.hp < a.max / 2) v *= g.lowhp; }
+  if (D && D.taken) { const t = D.taken;
+    if (t.physical && !sp) v *= t.physical;
+    if (t.special && sp) v *= t.special;
+    if (t.aoe && m.t === 'foes') v *= t.aoe;
+    if (t.highhp && d.hp > d.max / 2) v *= t.highhp; }
+  return v;
+}
 function battleStart(team, foes, node) {
   const boss = !!node && node.type === 'boss';
   team.forEach(u => {
@@ -783,6 +961,8 @@ function battleStart(team, foes, node) {
     if (u.pas === 'defender') alive(team).forEach(o => { stage(o, 'sDef', 1); stage(o, 'sSDef', 1); o.defN = (o.defN || 0) + 1; o.defT = 3; });
   });
   foes.forEach(u => { if (u.heat) u.heat.team = team; });
+  team.forEach(u => { if (ultraPerk(u)) u.teamRef = team; });
+  ultraStart(team, foes);
   [team, foes].forEach(side => side.forEach(u => { if (hasPas(u, 'sanctuary')) u.teamRef = side; }));   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
@@ -847,6 +1027,7 @@ function act0(a, m, target, allies, foes, L) {
     L.push(`${nm(a)} used Retcon! "That never happened." Your boosts and shields are erased, and his side's ailments vanish.`);
     fx({ u:a, k:'name', t:'RETCON', el:'psychic', snd:'buff' }); return;
   }
+  a._uaNow = !a._ua; a._ua = true;   // Ultra 'first attack' perks
   if (m.decree) return decree(a, m, allies, foes, L);
   if (m.fizzle && Math.random() < m.fizzle) {   // Dark Saber's cheap saber: sometimes it just turns off
     a.sta -= m.s; const v = calcDmg(a, a, { pow:20 }, 1, false); a.hp = Math.max(1, a.hp - v); a.hit = true;
@@ -923,10 +1104,14 @@ function act0(a, m, target, allies, foes, L) {
         if (multi) { fx({ u:d, k:'dmg', v:dmg, crit, eff, el:m.el, small:true, delay:h * 230, snd:crit ? 'crit' : 'hit', hp:Math.max(0, d.hp), max:d.max, from:firstFx ? hp0 : undefined }); firstFx = false; }
         if (has(d, 'thorns') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
         if (hasPas(d, 'bramble') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
+        thorn += ultraHurt(d, a, dmg, fl);
+        ultraHit(a, d, m, dmg, allies, fl);
         if (m.t === 'foe' && dmg > 0 && hasPas(d, 'kiln') && !a.burn && Math.random() < 0.25) { a.burn = 3; a.burnP = false; fl.push(`${nm(a)} burned by its molten core`); }
         if (m.t === 'foe' && dmg > 0 && hasPas(d, 'staticbody') && !a.para && Math.random() < 0.25) { a.para = 3; fl.push(`${nm(a)} paralyzed by static`); }
         if (d.hp <= 0 && has(d, 'plume') && !d.plumeUsed) { d.hp = 1; d.plumeUsed = true; fl.push('held on'); }
+        if (d.hp <= 0 && (ultraPerk(d) || {}).endure && !d.endureUsed) { d.hp = 1; d.endureUsed = true; fl.push('ULTRA ENDURE'); fx({ u:d, k:'num', t:'ULTRA ENDURE', c:'#f9c74f', burst:'buff' }); }
         if (d.hp <= 0 && d.pas === 'standing' && !d.standUsed) { d.hp = 1; d.standUsed = true; fl.push('STILL STANDING'); fx({ u:d, k:'num', t:'STILL STANDING', c:'#f9c74f', burst:'buff' }); }
+        if (d.hp <= 0 && !d._koBy) { d._koBy = true; ultraKill(a); }
         if (d.pas === 'spite' && dmg > 0 && d.hp > 0) { const tgt = pick(alive(allies)); if (tgt) { const r = Math.max(1, Math.round(dmg * 0.2)); tgt.hp -= r; tgt.hit = true; fl.push(`spite hits ${nm(tgt)} for ${r}`); fx({ u:tgt, k:'dmg', v:r, el:d.el, small:true, ko:tgt.hp <= 0, tags:['SPITE'] }); } }
         if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; d.burnP = !!m.burnP; fl.push(m.burnP ? 'burned+' : 'burned'); }
         if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; d.poisonP = !!m.poisonP; fl.push(m.poisonP ? 'poisoned+' : 'poisoned'); }
@@ -1059,6 +1244,7 @@ function endRound(x, L) {
   if (x.hp > 0 && hasPas(x, 'sanctuary') && x.teamRef) { const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0]; if (w && w.hp < w.max) { const h = heal(w, w.max * 0.05); if (h) { L.push(`${nm(x)}'s Sanctuary heals ${nm(w)} (+${h}).`); fx({ u:w, k:'heal', v:h, small:true }); } } }
   if (x.hp > 0 && hasPas(x, 'photo')) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
   summonTick(x, L);
+  ultraRound(x, L);
   if (x.pas === 'guardian' && x.hp > 0 && x.teamRef) {   // Guardian Angel: shield the most hurt ally
     const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0];
     if (w && w.hp < w.max) { const s = Math.round(w.max * 0.2); w.shield += s; L.push(`${nm(x)}'s Guardian Angel shields ${nm(w)} (+${s}).`); fx({ u:w, k:'num', t:`+${s} shield`, c:'#9ad0ff', burst:'buff' }); }
@@ -1313,14 +1499,15 @@ function planFor1(a, allies, foes, round = 1, noise = 0.12) {
 // Every node links to its neighbors in the next row, so the paths always look the same.
 const MAP_ROWS = [1, 2, 3, 4, 3, 4, 3, 2, 1];
 // Odds for the middle rows.
-const NODE_ODDS = [['fight', 0.32], ['elite', 0.12], ['recruit', 0.10], ['camp', 0.08], ['treasure', 0.07], ['train', 0.09], ['mystery', 0.08], ['item', 0.09], ['dojo', 0.05]];
+const ULTRA_ODDS = 0.005;   // Ultra tile: rare (a guaranteed one is placed by World 7 if none showed up; see ensureUltra)
+const NODE_ODDS = [['ultra', ULTRA_ODDS], ['fight', 0.32], ['elite', 0.12], ['recruit', 0.10], ['camp', 0.08], ['treasure', 0.07], ['train', 0.09], ['mystery', 0.08], ['item', 0.09], ['dojo', 0.05]];
 // Item tile offers: consumables and held items mixed.
 const itemOffers = () => { const pool = [...USE_ITEMS, ...USE_ITEMS, ...HOLD_ITEMS], out = []; while (out.length < ITEM_CHOICES) { const k = pick(pool); if (!out.includes(k)) out.push(k); } return out; };
 function rollType(f) {
   const odds = REALM >= 1 ? [['fuse', 0.05], ...NODE_ODDS] : NODE_ODDS;
   let r = Math.random() * odds.reduce((s, o) => s + o[1], 0), t = 'fight';
   for (const [k, p] of odds) { if (r < p) { t = k; break; } r -= p; }
-  return t === 'elite' && f < 2 ? 'fight' : t;
+  return (t === 'elite' || t === 'ultra') && f < 2 ? 'fight' : t;
 }
 function rollFoe(w) {
   const nat = nativesOf(w);
@@ -1358,6 +1545,13 @@ function moonMap() {
   let gi = 0; rows.forEach(r => { if (r[0].type === 'boss') r[0].gi = gi++; });
   for (let f = 0; f < rows.length - 1; f++) rows[f][0].next = [rows[f + 1][0]];
   return rows;
+}
+// Make sure a run sees at least one Ultra tile by World 7 (index 6). Returns true if the map has one.
+function ensureUltra(map, w, seen) {
+  const has = map.some(r => r.some(n => n.type === 'ultra'));
+  if (has || seen || w < 6 || isMoon(w)) return has;
+  const spots = map.slice(2, map.length - 2).flat().filter(n => n.type !== 'recruit' && n.type !== 'camp');
+  const n = pick(spots); n.type = 'ultra'; delete n.foe; return true;
 }
 // What a mystery tile turns into when you step on it.
 const MYSTERY_ODDS = [['ambush', 0.20], ['treasure', 0.16], ['recruit', 0.13], ['train', 0.16], ['camp', 0.13], ['trap', 0.06], ['item', 0.10], ['dojo', 0.06]];

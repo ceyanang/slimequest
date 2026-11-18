@@ -145,6 +145,7 @@ function showUnitInfo(u) {
   const weak = mult.filter(x => x[1] > 1.01).sort((a, b) => b[1] - a[1]), res = mult.filter(x => x[1] < 0.99).sort((a, b) => a[1] - b[1]);
   const ml = list => list.length ? list.map(([e, m]) => `${etag(e)} <small>${m.toFixed(2).replace(/\.?0+$/, '')}x</small>`).join(' ') : '<small>none</small>';
   const ps = passiveOf(u), tricks = [];
+  if (ultraPerk(u)) tricks.push(`<b class="ultratag">&#9733; ${ultraPerk(u).n} (Ultra):</b> ${ultraPerk(u).d}`);
   if (u.quirk) tricks.push(`<b>Native to ${WORLDS[G ? G.w : 0].name}:</b> ${u.quirk}`);
   if (u.undying && !u.undyingUsed) tricks.push(`<b>${u.undying.title}:</b> gets back up once when knocked out.`);
   if (u.summon) tricks.push(`<b>${u.summon.title}:</b> calls in reinforcements every ${u.summon.every} rounds.`);
@@ -197,7 +198,7 @@ function showSlimeCard(i) {
 // Clearing Realm 1 opens the rare elements as starters.
 const starterEls = () => META.cleared.includes(1) ? [...STARTERS, ...RARE_ELS] : STARTERS;
 const REALM_LOCKED = r => r > 0 && !META.cleared.includes(r);
-function passiveLine(p) { const ps = passiveOf(p); return ps ? `<div class="pas"><b>${ps.n}</b> ${ps.d}</div>` : ''; }
+function passiveLine(p) { const ps = passiveOf(p), up = ultraPerk(p); return (ps ? `<div class="pas"><b>${ps.n}</b> ${ps.d}</div>` : '') + (up ? `<div class="pas"><b class="ultratag">&#9733; ${up.n} (Ultra)</b> ${up.d}</div>` : ''); }
 /* ================= pick screen ================= */
 function renderPick() {
   TITLE_UP = true;
@@ -272,6 +273,7 @@ function startRun() {
   party[0].pas = opts0.some(x => x.id === choice.pas) ? choice.pas : opts0[0].id;
   setRealm(REALM_LOCKED(choice.realm) ? 0 : choice.realm);
   G = { w:0, map:genMap(0), pos:null, node:null, learnQ:[], auto:false, fast:false, bag:[] };
+  G.ultraSeen = ensureUltra(G.map, 0, false);
   showMap();
 }
 
@@ -319,7 +321,7 @@ function showMap() {
   const nextLv = lvlOf(G.w, reach[0] ? reach[0].f : 0);
   app.innerHTML = `
     <h1>${worldTitle()}</h1>
-    ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('boss')} boss</div>
+    ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('ultra')} ultra · ${icon('boss')} boss</div>
     ${partyMini()}
     <div class="row"><button id="bagbtn">${icon('item')} BAG (${G.bag.length})</button><button id="savebtn">SAVE &amp; QUIT</button><button id="forfeitbtn" class="danger">FORFEIT</button></div>
     <div class="row maptog"><button id="mauto" class="tog ${G.auto ? 'on' : ''}">AUTO: ${G.auto ? 'ON' : 'OFF'}</button><button id="mquick" class="tog ${G.quick ? 'on' : ''}">QUICK: ${G.quick ? 'ON' : 'OFF'}</button></div>
@@ -388,6 +390,7 @@ function enterNode(n) {
   if (n.type === 'item') return showItemTile();
   if (n.type === 'dojo') return showDojo();
   if (n.type === 'fuse') return showFuse();
+  if (n.type === 'ultra') return showUltra();
   if (n.type === 'mystery') return showMystery(n);
   if (n.type === 'choice') return showStartChoice(n);
   if (n.type === 'start') return showMap();
@@ -450,6 +453,35 @@ function showRecruit(offers = recruitOffers(party), rerolled = false) {
   document.getElementById('skip').onclick = showMap;
 }
 /* fusion shrine: pick two slimes, preview, merge; then learn the other parent's moves one by one */
+/* Ultra tile: one slime takes its Ultra form for the rest of the run. */
+function showUltra() {
+  const ok = party.filter(p => !p.ultra && p.hp > 0);
+  if (!ok.length) { app.innerHTML = `<h1>ULTRA CRYSTAL</h1>${img(spriteURL('i_ultra', 8), 'mid')}<div class="sub" style="text-align:center">The crystal glows, but nobody here can take an Ultra form right now.</div><div class="row"><button class="primary" id="go">BACK TO MAP</button></div>`; return document.getElementById('go').onclick = showMap; }
+  app.innerHTML = `<h1>ULTRA CRYSTAL</h1>${img(spriteURL('i_ultra', 8), 'mid bob')}
+    <div class="sub" style="text-align:center">A crystal hums with raw power. One slime can take its <b>Ultra form</b> for the rest of this run: +35% stats, upgraded gear, an elemental aura and a unique Ultra perk.</div>
+    ${ok.map(p => { const keys = ultraChoices(p); return `<div class="row" style="margin-bottom:6px"><button class="offer" data-u="${party.indexOf(p)}">${img(unitURL(p), 'tiny')}<span><b>${p.name}</b> · Lv${p.lvl} ${etags(p)}<br><small>${keys.map(k => `<span class="ultratag">${ULTRA_PERKS[k].n}</span>: ${ULTRA_PERKS[k].d}`).join('<br>or ')}</small></span></button></div>`; }).join('')}
+    <div class="row"><button id="skip">LEAVE IT</button></div>`;
+  app.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const p = party[+b.dataset.u], keys = ultraChoices(p); keys.length > 1 ? pickUltraPerk(p, keys) : doUltra(p, keys[0]); });
+  document.getElementById('skip').onclick = showMap;
+}
+// Fused slimes choose which parent's Ultra perk they take.
+function pickUltraPerk(p, keys) {
+  app.innerHTML = `<h1>CHOOSE A POWER</h1>${img(unitURL(p), 'mid bob')}<div class="sub" style="text-align:center">${p.name} carries two bloodlines. Which Ultra perk awakens?</div>
+    ${keys.map((k, i) => { const [e, c] = k.split('_'); return `<div class="row" style="margin-bottom:6px"><button class="offer" data-k="${i}"><span><span class="ultratag">${ULTRA_PERKS[k].n}</span> <small>(${ELEM[e].name} ${CLASSES[c].name})</small><br><small>${ULTRA_PERKS[k].d}</small></span></button></div>`; }).join('')}
+    <div class="row"><button id="back">BACK</button></div>`;
+  app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => doUltra(p, keys[+b.dataset.k]));
+  document.getElementById('back').onclick = showUltra;
+}
+function doUltra(p, key) {
+  const before = unitURL(p); makeUltra(p, key); SFX.play('level');
+  const P = ULTRA_PERKS[key];
+  app.innerHTML = `<h1>ULTRA FORM!</h1>
+    <div class="row" style="justify-content:center;align-items:center;gap:6px">${img(before, 'big')}<span style="font-size:22px;color:var(--gold)">&#10148;</span>${img(unitURL(p), 'big bob ultraglow', `--uc:${ELEM[p.el].c}`)}</div>
+    <div class="sub" style="text-align:center"><b>${p.name}</b> awakens! All stats +35%.</div>
+    <div class="faces"><span class="ultratag">&#9733; ${P.n}</span><br>${P.d}</div>${partyMini()}
+    <div class="row"><button class="primary" id="go">ONWARD</button></div>`;
+  document.getElementById('go').onclick = showMap;
+}
 function showFuse() {
   const leave = () => showMap();
   if (party.length + (G.essence ? 1 : 0) < 2) { app.innerHTML = '<h1>FUSION SHRINE</h1><div class="sub">The shrine hums, but it needs two slimes (party or pocket essence).</div><div class="row"><button id="fx">LEAVE</button></div>'; return document.getElementById('fx').onclick = leave; }
@@ -855,7 +887,7 @@ function showWorldClear() {
   app.innerHTML = `<h1>${WORLDS[G.w].name.toUpperCase()} CLEARED!</h1>${img(spriteURL(BOSS_INFO[G.w].spr, 4), 'bossbig')}
     <div class="sub" style="text-align:center">${BOSS_INFO[G.w].outro} ${moon ? 'Your party is fully healed for the trip to the Moon. Up there: the Elite 4, back to back, then one rest at the Moon Base before the Sun itself.' : `Your party patches up (50% heal, fallen slimes revive) and heads for the ${next}.`}</div>${awardHTML()}${partyMini()}
     <div class="row" style="margin-top:12px"><button class="primary" id="go">ENTER THE ${next.toUpperCase()}</button></div>`;
-  document.getElementById('go').onclick = () => { if (moon) campHeal(party); else campHeal(party, 0.5, 0.5); G.w++; G.map = genMap(G.w); G.pos = G.map[0][0]; G.pos.visited = true; G.node = null; showMap(); };
+  document.getElementById('go').onclick = () => { if (moon) campHeal(party); else campHeal(party, 0.5, 0.5); G.w++; G.map = genMap(G.w); G.ultraSeen = ensureUltra(G.map, G.w, G.ultraSeen) || G.ultraSeen; G.pos = G.map[0][0]; G.pos.visited = true; G.node = null; showMap(); };
 }
 
 function statusTags(x) {
@@ -889,7 +921,7 @@ function unitCard(u, i) {
   const big = (u.boss || u.art) && !u.small && u.spr && SPR_IMG[u.spr[0][0]];
   const cls = ['card', 'ucard', big ? 'bosscard' : '', u.hp <= 0 ? 'dead' : '', u.hit ? 'hit' : '', B.sel === u || B.cur === u ? 'sel' : '', targetable ? 'targetable' : ''].join(' ');
   return `<div class="${cls}" data-side="${side}" data-i="${i}">
-    ${img(unitURL(u), (big ? 'bossimg ' : u.boss || u.small ? 'mid ' : 'xs ') + (u.hp > 0 ? 'bob' : ''), `animation-delay:${i * 0.3}s`)}
+    ${img(unitURL(u), (big ? 'bossimg ' : u.boss || u.small ? 'mid ' : 'xs ') + (u.hp > 0 ? 'bob' : '') + (u.ultra && u.hp > 0 ? ' ultraglow' : ''), `animation-delay:${i * 0.3}s` + (u.ultra ? `;--uc:${ELEM[u.el].c}` : ''))}
     ${big ? '<div class="binfo">' : ''}<div class="nm">${u.name}</div>
     <div class="lv">Lv${u.lvl} ${etags(u)}</div>${passiveOf(u) ? `<div class="pasn">&#9733; ${passiveOf(u).n}</div>` : ''}
     <div class="bar ${side === 'E' ? 'red' : ''}"><i style="width:${Math.max(0, u.hp)/u.max*100}%"></i></div>

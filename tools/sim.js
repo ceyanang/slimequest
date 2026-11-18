@@ -12,10 +12,13 @@ function fight(team,foes){
   }
   return battleOver(team,foes)==='win';
 }
-function runOnce(starter, fixed, stats){
+const NOULTRA=!!process.env.NOULTRA;
+function runOnce(starter, fixed, stats){ let ultraSeen=false;
   let party=fixed?fixed.map(([e,c],i)=>{const p=newSlime(e,c); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[i]:SB); derive(p); p.hp=p.max; return p;}):[(()=>{const p=newSlime(starter[0],starter[1]); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[0]:SB); derive(p); p.hp=p.max; return p;})()];
   for(let w=0;w<WORLDS.length;w++){ LV_WORLD=w;
     const map=genMap(fixed&&!isMoon(w)?1:w); let pos=null;
+    { const real=genMap(w); ultraSeen=ensureUltra(real,w,ultraSeen)||ultraSeen; const has=real.some(r=>r.some(x=>x.type==='ultra'));
+      if(has&&!NOULTRA){ const c=party.filter(p=>!p.ultra&&p.hp>0); if(c.length){ const u=c.reduce((x,y)=>x.lvl>=y.lvl?x:y); makeUltra(u, ultraChoices(u)[0]); } } }
     for(let f=0;f<map.length;f++){
       const opts=pos?pos.next:map[0]; let n=pick(opts);
       if(!fixed&&party.length<PARTY_MAX){const rc=opts.find(o=>o.type==='recruit'); if(rc) n=rc;}
@@ -25,6 +28,7 @@ function runOnce(starter, fixed, stats){
       if(n.type==='choice'){ n={...n,type:Math.random()<0.5?'fight':'recruit',foe:rollFoe(w)}; }
       if(n.type==='mystery'){ const r=rollMystery(); if(r==='ambush'){ n={...n,type:'fight',foe:rollFoe(w)}; } else if(r==='trap'){ party.forEach(p=>{ if(p.hp>0) p.hp=Math.max(1,p.hp-Math.round(p.max*0.15)); }); continue; } else n={...n,type:r}; }
       if(n.type==='fuse') continue;
+      if(n.type==='ultra') continue;   // handled per world below (a player routes to a crystal they can see)
       if(n.type==='dojo'){ const pp=pick(party); boostMove(pick(pp.moves)); continue; }
       if(n.type==='item'){ const k=pick(itemOffers());
         if(k==='booster'){ const p=pick(party); boostMove(pick(p.moves)); }

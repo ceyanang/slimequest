@@ -99,12 +99,12 @@ function awardBoss(w, team) {
 const clean = p => JSON.parse(JSON.stringify(p, (k, v) => (k === 'guardBy' || k === 'bomb' || k === 'counter' || k === 'teamRef' || k === 'phase') ? undefined : v));
 function snapshotRun() {
   const map = G.map.map(row => row.map(n => { const o = {}; for (const k in n) if (k !== 'next') o[k] = n[k]; o.next = n.next.map(m => [m.f, m.c]); return clean(o); }));
-  return { realm:REALM, w:G.w, party:party.map(clean), bag:G.bag.slice(), essence:G.essence ? clean(G.essence) : null, map, pos:G.pos ? [G.pos.f, G.pos.c] : null, node:G.node ? [G.node.f, G.node.c] : null, fast:!!G.fast, auto:!!G.auto, quick:!!G.quick };
+  return { realm:REALM, w:G.w, party:party.map(clean), bag:G.bag.slice(), essence:G.essence ? clean(G.essence) : null, map, pos:G.pos ? [G.pos.f, G.pos.c] : null, node:G.node ? [G.node.f, G.node.c] : null, fast:!!G.fast, auto:!!G.auto, quick:!!G.quick, ultraSeen:!!G.ultraSeen };
 }
 function restoreRun(s) {
   setRealm(s.realm || 0);
   const map = s.map.map(row => row.map(o => ({ ...o, next:[] })));
   s.map.forEach((row, f) => row.forEach((o, c) => { map[f][c].next = o.next.map(([f2, c2]) => map[f2][c2]); }));
   party = s.party.map(p => { resetStatus(p); return p; });
-  G = { w:s.w, map, pos:s.pos ? map[s.pos[0]][s.pos[1]] : null, node:s.node ? map[s.node[0]][s.node[1]] : null, learnQ:[], auto:false, fast:s.fast, auto:!!s.auto, quick:!!s.quick, bag:s.bag.slice(), essence:s.essence || null };
+  G = { w:s.w, map, pos:s.pos ? map[s.pos[0]][s.pos[1]] : null, node:s.node ? map[s.node[0]][s.node[1]] : null, learnQ:[], auto:false, fast:s.fast, auto:!!s.auto, quick:!!s.quick, ultraSeen:!!s.ultraSeen, bag:s.bag.slice(), essence:s.essence || null };
 }
