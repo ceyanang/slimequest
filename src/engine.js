@@ -784,7 +784,7 @@ function effMove(a, m) {
      dmg:   damage dealt x mult when { aoe, single, first, status, burn, poison, slowed, blinded, foeLow, lowhp }
      taken: damage taken x mult when { physical, special, aoe, highhp }
      kill:  { heal, sta, offUp }   crit: extra crit chance   endure: survives one knockout per fight at 1 HP */
-const ULTRA_STAT = 1.35;
+const ULTRA_STAT = 1.25;
 const ULTRA_PERKS = {
   // Fire: offense and burns
   fire_fighter:   { n:'Blazing Valor', d:'Starts each fight with +25% OFF. Its hits have a 25% chance to burn.', start:{ offUp:1 }, hit:{ burn:0.25 } },
