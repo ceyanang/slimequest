@@ -24,6 +24,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 - `src/engine.js`: units, damage (calcDmg), act/endRound, AI (scoreMove, planFor with 1-round lookahead), enemies, Realm 1 bosses (BOSSES), Realm 2 bosses (BOSSES2), Realm 3 bosses (BOSSES3, Moon Elite 4 MOON_FIGHTS, moonMap), fusion (fuseSlimes, multiclass names MULTICLASS, element names ELEMENT_COMBO), map generation.
 - `src/meta.js`: saved progress (stars, shared points, realm clears), save/resume run.
 - `src/ui.js`: every screen (starter pick, map, battle, recruit, shrine, bag/pocket, inspect popup).
+- Battle text: Pokemon-style dialogue box (`setDlg`/`dlgWait`/`typeInto` in ui.js) replaces the move panel while actions play; pre-boss cutscene `showBossIntro` pages the intro and waits for CONTINUE.
 - `src/bossart.js`: Realm 2 boss art (base64 PNG). `src/bossart3.js`: Realm 3 boss art (source PNGs in `art/realm3/`).
 
 ## Systems in short

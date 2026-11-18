@@ -645,8 +645,71 @@ function startFight(node) {
   party.forEach(p => { const hp = p.hp; resetStatus(p); p.hp = hp; });
   B = { downed:new Set(), foes:makeFoes(G.w, node, party.length), queue:[], qi:0, cur:null, sel:null, pending:null, busy:false, over:null, log:[], round:0, gains:[] };
   battleStart(party, B.foes, node);
-  B.log.push(node.type === 'boss' ? bossInfoOf(G.w, node).intro : `${B.foes.map(e => `Lv${e.lvl} ${e.name}`).join(', ')} ${B.foes.length > 1 ? 'appear' : 'appears'}!`);
-  startRound();
+  if (node.type === 'boss') {
+    const bi = bossInfoOf(G.w, node);
+    B.log.push(bi.intro);
+    return showBossIntro(bi, () => openBattle(`${bi.name} blocks the way!`));
+  }
+  const line = `${B.foes.map(e => `Lv${e.lvl} ${e.name}`).join(', ')} ${B.foes.length > 1 ? 'appear' : 'appears'}!`;
+  B.log.push(line);
+  openBattle(line);
+}
+async function openBattle(line) {
+  const b0 = B; B.busy = true; setDlg([line]); renderBattle();
+  await dlgWait(dlgTime(line));
+  if (B !== b0) return;
+  B.busy = false; startRound();
+}
+
+/* ---- Pokemon-style dialogue box: while actions play out, the move panel becomes a text box that types out what happened.
+   Tap it to finish the text or skip ahead. ---- */
+const TW = { key:null, i:0, timer:null };
+const dlgCps = () => (G && G.fast) ? 130 : 60;   // characters per second
+function setDlg(lines) { B.dlg = lines.filter(Boolean).map(l => String(l).replace(/<[^>]+>/g, '')); B.dlgId = (B.dlgId || 0) + 1; }
+const dlgText = () => (B.dlg || []).join('\n');
+// How long an action's text stays up: typing time plus a moment to read it.
+const dlgTime = t => Math.min(3600, 650 + (t || '').length / 60 * 1000);
+function dlgWait(ms) {
+  return new Promise(res => {
+    const done = () => { clearTimeout(t); if (B && B.skip === done) B.skip = null; res(); };
+    const t = setTimeout(done, ms / ((G && G.fast) ? 2.2 : 1));
+    if (B) B.skip = done;
+  });
+}
+// Type the current dialogue into an element; survives re-renders (keeps its place).
+function typeInto(el, key, full, onDone) {
+  clearInterval(TW.timer);
+  if (TW.key !== key) { TW.key = key; TW.i = 0; }
+  const step = () => { el.textContent = full.slice(0, TW.i); if (TW.i >= full.length) { clearInterval(TW.timer); el.parentNode.classList.add('done'); if (onDone) onDone(); } };
+  step();
+  if (TW.i < full.length) TW.timer = setInterval(() => { TW.i = Math.min(full.length, TW.i + 2); step(); }, 2000 / dlgCps());
+}
+const dlgDone = full => TW.i >= full.length;
+function dlgTap(full) {
+  if (!dlgDone(full)) { TW.i = full.length; const el = app.querySelector('.dlgt'); if (el) { el.textContent = full; el.parentNode.classList.add('done'); } clearInterval(TW.timer); return; }
+  if (B && B.skip) B.skip();
+}
+// Split long boss speeches into pages of about two sentences.
+function dlgPages(text) {
+  const sents = text.match(/[^.!?]+[.!?]+["']?\s*|[^.!?]+$/g) || [text], pages = [];
+  let cur = '';
+  sents.forEach(x => { if (cur && (cur + x).length > 150) { pages.push(cur.trim()); cur = ''; } cur += x; });
+  if (cur.trim()) pages.push(cur.trim());
+  return pages;
+}
+// Pre-boss cutscene: big art, the speech typed out page by page; only CONTINUE moves on.
+function showBossIntro(bi, then) {
+  const pages = dlgPages(bi.intro); let p = 0;
+  const draw = () => {
+    const full = pages[p], key = 'boss:' + bi.name + ':' + p, last = p === pages.length - 1;
+    app.innerHTML = `<div class="cut"><div class="cutname">${bi.name.toUpperCase()}</div>${img(spriteURL(bi.spr, 4), 'bossbig cutart')}
+      <div class="dlg big" id="cutdlg"><div class="dlgt"></div><span class="dlgarrow">&#9660;</span></div>
+      <div class="row"><button class="primary" id="cutgo">${last ? 'FIGHT!' : 'CONTINUE'}</button></div></div>`;
+    typeInto(app.querySelector('.dlgt'), key, full);
+    const go = () => { if (!dlgDone(full)) return dlgTap(full); SFX.play('buff'); if (last) then(); else { p++; draw(); } };
+    document.getElementById('cutgo').onclick = go; document.getElementById('cutdlg').onclick = go;
+  };
+  draw();
 }
 // Turn order: every living unit, fastest first (ties go to your slimes).
 // After any action, re-sort who's left this round so slows and hastes take effect right away.
@@ -665,25 +728,30 @@ function startRound() {
 // Extra wait so multi-hit moves can finish showing every hit.
 const fxExtra = () => FX && FX.length ? Math.max(0, ...FX.map(e => e.delay || 0)) : 0;
 async function advance() {
+  const b0 = B;   // stop if a different fight has started meanwhile
   B.busy = true;
   while (B.qi < B.queue.length) {
     const u = B.queue[B.qi];
     if (u.hp <= 0) { B.qi++; continue; }
     if (u.side === 'P') {
-      if (u.stun) { act(u, REST, null, party, B.foes, B.log); B.qi++; renderBattle(); await wait(800); continue; }
+      if (u.stun) { const L0 = B.log.length; act(u, REST, null, party, B.foes, B.log); setDlg(B.log.slice(L0)); B.qi++; renderBattle(); await dlgWait(dlgTime(dlgText())); if (B !== b0) return; continue; }
       if (!G.auto) { B.sel = u; B.busy = false; renderBattle(); return; } // wait for the player
     }
     B.sel = null;
     const mine = u.side === 'P', al = mine ? party : B.foes, fo = mine ? B.foes : party;
     const pl = planFor(u, al, fo, B.round, mine ? 0.05 : 0.12);
+    const L0 = B.log.length;
     act(u, pl.m, pl.target, al, fo, B.log);
+    setDlg(B.log.slice(L0));
     const ex = fxExtra();
     B.qi++; bumpOrder(); B.cur = u; renderBattle(); B.cur = null;
-    await wait(950 + ex);
+    await dlgWait(Math.max(950 + ex, dlgTime(dlgText())));
+    if (B !== b0) return;
     if (battleOver(party, B.foes, B.log)) return finishCheck();
   }
+  const L1 = B.log.length;
   [...party, ...B.foes].forEach(u => endRound(u, B.log));
-  if (FX.length) { const extra = Math.max(0, ...FX.map(e => e.delay || 0)); renderBattle(); await wait(700 + extra); }
+  if (FX.length || B.log.length > L1) { const extra = FX.length ? Math.max(0, ...FX.map(e => e.delay || 0)) : 0; setDlg(B.log.slice(L1)); renderBattle(); await dlgWait(Math.max(700 + extra, B.dlg.length ? dlgTime(dlgText()) : 0)); if (B !== b0) return; }
   if (finishCheck()) return;
   B.busy = false;
   startRound();
@@ -710,11 +778,14 @@ function pickMove(i) {
   doTurn(u, m, m.t === 'foe' ? alive(B.foes)[0] : m.t === 'ally' ? u : m.t === 'fallen' ? party.find(p => p.hp <= 0) : null);
 }
 async function doTurn(u, m, target) {
-  B.pending = null; B.sel = null; B.busy = true;
+  const b0 = B; B.pending = null; B.sel = null; B.busy = true;
+  const L0 = B.log.length;
   act(u, m, target, party, B.foes, B.log);
+  setDlg(B.log.slice(L0));
   const ex = fxExtra();
   B.qi++; bumpOrder(); B.cur = u; renderBattle(); B.cur = null;
-  await wait(900 + ex);
+  await dlgWait(Math.max(900 + ex, dlgTime(dlgText())));
+  if (B !== b0) return;
   if (battleOver(party, B.foes, B.log)) return finishCheck();
   advance();
 }
@@ -871,6 +942,8 @@ function renderBattle() {
       <div class="row"><button class="primary" id="next">${learnN ? 'LEARN NEW MOVES' : node.type === 'elite' || node.type === 'boss' ? 'OPEN TREASURE' : 'BACK TO MAP'}</button></div></div>`;
   } else if (B.over === 'lose') {
     controls = `<div class="banner"><h2>SPLAT</h2><div class="sub">Your party fell in world ${G.w + 1} (${WORLDS[G.w].name}), floor ${node.f + 1}.</div><div class="row"><button class="primary" id="again">NEW RUN</button></div></div>`;
+  } else if (B.busy && B.dlg && B.dlg.length) {
+    controls = `<div class="dlg" id="bdlg"><div class="dlgt"></div><span class="dlgarrow">&#9660;</span></div>`;
   } else if (B.busy) {
     controls = `<div class="hint">${B.cur ? B.cur.name + ' acts...' : G.auto ? 'Auto-fighting...' : 'Enemies are moving...'}</div>`;
   } else if (B.pending) {
@@ -912,6 +985,9 @@ function renderBattle() {
   if (!B.over) for (const [k, sel] of [['bhead', '.bhead'], ['order', '.order'], ['controls', '.controls'], ['log', '.log']]) {
     const e = app.querySelector(sel); if (e) hold[k] = Math.max(hold[k] || 0, e.offsetHeight);
   }
+  const dl = app.querySelector('#bdlg');
+  if (dl) { const full = dlgText(); if (hold.controls) dl.style.minHeight = (hold.controls - 6) + 'px'; typeInto(dl.querySelector('.dlgt'), 'b' + B.dlgId, full); dl.onclick = () => dlgTap(full); }
+  else clearInterval(TW.timer);
   [...party, ...B.foes].forEach(u => u.hit = false);
   playFX();
   marquee();
