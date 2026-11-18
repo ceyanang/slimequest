@@ -3,7 +3,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = n => 1 + Math.floor(Math.random() * n);
 const alive = arr => arr.filter(u => u.hp > 0);
 
-function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
+function resetStatus(x) { Object.assign(x, { sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, burnP:false, poisonP:false, paraP:false, blindP:false, confuseP:false, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
 // Speed after paralysis (-25%) and speed stages; used for turn order.
 const has = (u, id) => u.item === id;
 const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0, u) * (has(u, 'badge') ? 1.5 : 1);
@@ -232,7 +232,9 @@ function bossUnit(w, L, o) {
   if (o.script) u.script = o.script;
   return u;
 }
-const side = (w, L, el, cls, f) => classEnemy(w, Math.max(1, L - 1), el, cls, f);
+// Boss sidekicks: more HP than a normal foe of their kind (so the boss can play off them), same damage.
+const SIDE_HP = 1.6;
+const side = (w, L, el, cls, f) => { const u = classEnemy(w, Math.max(1, L - 1), el, cls, f); u.base.hp *= SIDE_HP; derive(u); u.hp = u.max; return u; };
 const BOSSES = [
   // 1. The Protagonist: spiky hair, a sword bigger than he is, and a full party of tropes.
   (w, L) => [bossUnit(w, L, { name:'The Protagonist', el:'light', spr:'b_hero', cls:'fighter', dmul:[1.1, 1],
@@ -288,7 +290,7 @@ const BOSSES = [
       k:{ hp:2.6, off:1.0, def:1.2, spd:6, sta:120, crit:0.1 }, basic:{ n:'Lance Jab', cat:P },
       script:[null, 'Wyrmfire Bomb', 'Dragonguard Stance', 'Rally the Order'],
       phase:{ at:0.5, title:'WYRMBLOOD', shield:0.15, script:['Wyrmfire Bomb', "Dragon's Breath", 'Dragonguard Stance', null], offUp:1, heal:0.1, say:'Dracona drinks the dragon blood from her flask. Her armor glows red-hot.',
-              addMoves:[ { n:"Dragon's Breath", el:'fire', cat:P, pow:70, s:50, t:'foes', burn:0.6 } ] },
+              addMoves:[ { n:"Dragon's Breath", el:'fire', cat:P, pow:70, s:50, t:'foes', burn:0.6, burnP:true } ] },
       moves:[ { n:'Dragonslayer', el:'fire', cat:P, pow:85, s:35, t:'foe', pierce:true },
               { n:'Wyrmfire Cleave', el:'fire', cat:P, pow:50, s:40, t:'foes', burn:0.4 },
               { n:'Scale Guard', el:'neutral', pow:0, s:30, t:'self', armor:1, healPct:0.15 },
@@ -380,7 +382,7 @@ const BOSSES2 = [
       script:["Widow's Curse", 'Toss the Head', 'Soggy Embrace', null],
       phase:{ at:0, title:'TILL DEATH DO US PART', shield:0.15, script:['Toss the Head', "Widow's Curse", 'Drain the Living', 'Soggy Embrace'], offUp:1, say:'Matilda: "Till death do us part." She rises again, mascara running, vows still on her lips.',
               addMoves:[ { n:'Drain the Living', el:'dark', cat:S, pow:55, s:45, t:'foe', leech:0.5 } ] },
-      moves:[ { n:"Widow's Curse", el:'dark', cat:S, pow:40, s:30, t:'foe', poison:1, blind:0.4 },
+      moves:[ { n:"Widow's Curse", el:'dark', cat:S, pow:40, s:30, t:'foe', poison:1, poisonP:true, blind:0.4 },
               { n:'Soggy Embrace', el:'water', cat:S, pow:40, s:40, t:'foes', slow:1 },
               { n:'Toss the Head', el:'dark', pow:0, s:50, t:'foe', bomb:{ pow:65, stun:0.4 } },
               { n:'Dress Drip', el:'water', pow:0, s:30, t:'self', healPct:0.15, regen:[0.1, 3] } ] });
@@ -390,7 +392,7 @@ const BOSSES2 = [
   (w, L) => { const h = boss2(w, L, 4, { cls:'ranger', dmul:[1.1, 1], k:{ hp:3.3, off:1.12, def:1.1, spd:7, sta:120, crit:0.12 }, basic:{ n:'Pulse Burst', cat:P },
       script:['Tactical Mark', 'Pulse Barrage', 'Rocket Salvo', 'Field Medic'],
       phase:{ at:0.5, title:'LAST MISSION', shield:0.15, script:['Tactical Mark', 'Pulse Barrage', 'Rocket Salvo', 'Helix Burst'], offUp:1, say:'Soldier 67 reloads. "One more mission. They always say that."',
-              addMoves:[ { n:'Helix Burst', el:'lightning', cat:P, pow:50, s:40, t:'foes', para:0.3 } ] },
+              addMoves:[ { n:'Helix Burst', el:'lightning', cat:P, pow:50, s:40, t:'foes', para:0.3, paraP:true } ] },
       moves:[ { n:'Tactical Mark', el:'light', pow:0, s:25, t:'foe', mark:2 },
               { n:'Pulse Barrage', el:'lightning', cat:P, pow:24, hits:4, s:35, t:'foe', para:0.3 },
               { n:'Rocket Salvo', el:'lightning', pow:0, s:50, t:'foe', bomb:{ pow:70, para:0.4 } },
@@ -403,7 +405,7 @@ const BOSSES2 = [
               addMoves:[ { n:'Encore Solo', el:'psychic', cat:S, pow:25, hits:4, s:45, t:'foe' } ] },
       moves:[ { n:'Power Chord', el:'earth', cat:S, pow:35, s:30, t:'foes' },
               { n:'Crescendo', el:'psychic', pow:0, s:25, t:'self', offUp:1 },
-              { n:'Feedback', el:'psychic', cat:S, pow:20, s:35, t:'foes', confuse:0.6 },
+              { n:'Feedback', el:'psychic', cat:S, pow:20, s:35, t:'foes', confuse:0.6, confuseP:true },
               { n:'Stage Dive', el:'earth', cat:P, pow:70, s:35, t:'foe' } ] });
     const team = [h, named(side(w, L, 'life', 'cleric', 0.45), 'Backup Singer')]; h.teamRef = team; return team; },
   // 7. The Janitor: a very slow, very sticky tank. Wet floors, cones, and a mop that hits hard.
@@ -421,7 +423,7 @@ const BOSSES2 = [
       script:[null, 'Foreshadowing', 'Spoiler Alert', 'Plot Twist', 'Retcon'],
       phase:{ at:0.5, title:'THE CLIMAX', shield:0.2, script:['Foreshadowing', 'Retcon', 'Ink Blot', 'Spoiler Alert', 'Plot Twist'], offUp:1, say:'The Narrator: "And now, the exciting part." The pages begin to burn at the edges.',
               addMoves:[ { n:'Ink Blot', el:'dark', cat:S, pow:35, s:40, t:'foes', poison:1 } ] },
-      moves:[ { n:'Plot Twist', el:'dark', cat:S, pow:55, s:30, t:'foe', confuse:0.5 },
+      moves:[ { n:'Plot Twist', el:'dark', cat:S, pow:55, s:30, t:'foe', confuse:0.5, confuseP:true },
               { n:'Bad Review', el:'light', cat:S, pow:40, s:35, t:'foes', blind:0.4 },
               { n:'Spoiler Alert', el:'light', pow:0, s:30, t:'self', spoiler:true },
               { n:'Retcon', el:'psychic', pow:0, s:35, t:'self', retcon:true },
@@ -504,7 +506,7 @@ const BOSSES3 = [
   (w, L) => { const h = boss3(w, L, REALM3_BOSSES[4], { cls:'sorcerer', dmul:[0.95, 1.2], k:{ hp:2.2, off:1.0, def:1.05, spd:6, sta:150 }, basic:{ n:'Ice Shard', cat:S },
       script:['Blizzard', 'Flash Freeze', 'Frostbite', 'Ice Mirror'],
       phase:{ at:0.5, title:'ETERNAL WINTER', shield:0.15, offUp:1, script:['Absolute Zero', 'Frostbite', 'Flash Freeze', 'Blizzard'], say:'The Frost Queen raises her hands. The sun goes out behind the clouds.',
-              addMoves:[ { n:'Absolute Zero', el:'water', cat:S, pow:45, s:50, t:'foes', stun:0.25 } ] },
+              addMoves:[ { n:'Absolute Zero', el:'water', cat:S, pow:45, s:50, t:'foes', stun:0.2, stunP:true } ] },
       moves:[ { n:'Flash Freeze', el:'water', cat:S, pow:35, s:35, t:'foe', stun:0.35 },
               { n:'Blizzard', el:'water', cat:S, pow:30, s:35, t:'foes', staDrain:20 },
               { n:'Frostbite', el:'water', cat:S, pow:40, s:30, t:'foe', staDrain:35, slow:1 },
@@ -544,8 +546,8 @@ const BOSSES3 = [
                       { n:'Black Corona', el:'dark', cat:S, pow:65, s:35, t:'foe' },
                       { n:'Totality', el:'dark', pow:0, s:50, t:'foe', bomb:{ pow:85, stun:0.3 } },
                       { n:'Sunbeam', el:'light', cat:S, pow:55, s:35, t:'foe' } ] },
-      moves:[ { n:'Corona', el:'fire', cat:S, pow:35, s:35, t:'foes', burn:0.4 },
-              { n:'Solar Flare', el:'fire', pow:0, s:50, t:'foe', bomb:{ pow:85, burn:0.5 } },
+      moves:[ { n:'Corona', el:'fire', cat:S, pow:35, s:35, t:'foes', burn:0.4, burnP:true },
+              { n:'Solar Flare', el:'fire', pow:0, s:50, t:'foe', bomb:{ pow:85, burn:0.5, burnP:true } },
               { n:'Sunbeam', el:'light', cat:S, pow:60, s:35, t:'foe' },
               { n:'Fusion Core', el:'fire', pow:0, s:35, t:'self', healPct:0.08, shieldPct:0.1 } ] });
     h.art = true; h.heat = { n:0, step:0.02, max:0.1 };
@@ -583,7 +585,7 @@ const MOON_FIGHTS = [
   (w, L) => { const h = boss3(w, L, MOON_ELITE[2], { cls:'mage', dmul:[0.95, 1.15], k:{ hp:2.9, off:1.2, def:1.0, spd:9, sta:150 }, basic:{ n:'Antenna Zap', cat:S },
       script:['Abduct', 'Raygun', 'Probe', 'Raygun'],
       phase:{ at:0.5, title:'MOTHERSHIP', shield:0.2, offUp:1, script:['Abduct', 'Mind Melt', 'Raygun', 'Mind Melt'], say:'Glorb presses a big red button. The mothership\'s shadow falls over the Moon.',
-              addMoves:[ { n:'Mind Melt', el:'psychic', cat:S, pow:40, s:40, t:'foes', confuse:0.3 } ] },
+              addMoves:[ { n:'Mind Melt', el:'psychic', cat:S, pow:40, s:40, t:'foes', confuse:0.3, confuseP:true } ] },
       moves:[ { n:'Abduct', el:'psychic', pow:0, s:40, t:'foe', abduct:2 },
               { n:'Raygun', el:'psychic', cat:S, pow:55, s:30, t:'foe' },
               { n:'Probe', el:'dark', cat:S, pow:35, s:30, t:'foe', confuse:0.5, expose:1 },
@@ -595,7 +597,7 @@ const MOON_FIGHTS = [
       phase:{ at:0.4, title:'I AM YOUR... UM', shield:0.15, offUp:1, script:['Flickering Saber', 'Telekinetic Squeeze', 'Flickering Saber', 'Heavy Breathing'], say:'Dark Saber smacks the side of his saber. It hums back to life, mostly.' },
       moves:[ { n:'Flickering Saber', el:'dark', cat:P, pow:85, s:35, t:'foe', fizzle:0.3 },
               { n:'Heavy Breathing', el:'dark', cat:S, pow:25, s:30, t:'foes', weaken:1 },
-              { n:'Telekinetic Squeeze', el:'dark', pow:0, s:35, t:'foe', stun:0.6 },
+              { n:'Telekinetic Squeeze', el:'dark', pow:0, s:35, t:'foe', stun:0.4, stunP:true },
               { n:'Cardboard Armor', el:'dark', pow:0, s:30, t:'self', shieldPct:0.2 } ] });
     const tr = () => { const c = named(side(w, L, 'dark', 'ranger', 0.35), 'Bucket Trooper'); c.blind = 3; return c; };   // can't see out of their buckets at first
     const team = [h, tr(), tr()]; h.teamRef = team; return team; }
@@ -811,14 +813,14 @@ function act(a, m, target, allies, foes, L) {
 function act0(a, m, target, allies, foes, L) {
   if (a._oc) { a._oc = false; stage(a, 'sSpd', -1); }
   if (a.abducted) { L.push(`${nm(a)} is still up in the saucer!`); fx({ u:a, k:'name', t:'Abducted!', el:'psychic', snd:'status' }); return; }
-  if (a.stun) { a.stun = 0; a.dazed = 1; L.push(`${nm(a)} is stunned and can't move! (Dazed: can't be stunned again until its next turn.)`); fx({ u:a, k:'name', t:'Stunned!', el:'lightning', snd:'status' }); return; }
+  if (a.stun) { a.stun--; const more = a.stun > 0; if (!more) { a.stun = 0; a.dazed = 1; } L.push(more ? `${nm(a)} is stunned and can't move! (Stun+: one more turn.)` : `${nm(a)} is stunned and can't move! (Dazed: can't be stunned again until its next turn.)`); fx({ u:a, k:'name', t:'Stunned!', el:'lightning', snd:'status' }); return; }
   a.dazed = 0;   // it got its turn: it can be stunned again
-  if (a.confuse && Math.random() < 0.4) {
+  if (a.confuse && Math.random() < (a.confuseP ? 0.6 : 0.4)) {
     const v = calcDmg(a, a, { pow:30 }, 1, false); a.hp -= v; a.hit = true;
     L.push(`${nm(a)} is confused and hurts itself for ${v}!${a.hp <= 0 ? ' KO!' : ''}`);
     fx({ u:a, k:'name', t:'Confused!', el:'psychic', snd:'status' }); fx({ u:a, k:'dmg', v, el:'psychic', small:true, ko:a.hp <= 0 }); return;
   }
-  if (a.para && Math.random() < 0.3) { L.push(`${nm(a)} is paralyzed and can't move!`); fx({ u:a, k:'name', t:'Paralyzed!', el:'lightning', snd:'status' }); return; }
+  if (a.para && Math.random() < (a.paraP ? 0.5 : 0.3)) { L.push(`${nm(a)} is paralyzed and can't move!`); fx({ u:a, k:'name', t:'Paralyzed!', el:'lightning', snd:'status' }); return; }
   if (m.rest) { const b = a.sta; a.sta = Math.min(a.staMax, a.sta + Math.round(a.staMax * m.rest)); L.push(`${nm(a)} rests. +${a.sta - b} STA.`); fx({ u:a, k:'name', t:'Rest', el:'neutral', snd:'rest' }); fx({ u:a, k:'num', t:`+${a.sta - b} STA`, c:'#f9c74f' });
     if (a.pas === 'peace') { const h = heal(a, a.max * 0.2), cured = cleanse(a); if (h) fx({ u:a, k:'heal', v:h }); if (cured) fx({ u:a, k:'num', t:'CURED', c:'#ffffff' }); if (h || cured) L.push(`${nm(a)}'s inner peace heals ${h} HP${cured ? ' and cures its ailments' : ''}.`); }
     return; }
@@ -868,12 +870,12 @@ function act0(a, m, target, allies, foes, L) {
     for (const d of tg) {
       const fl = [];
       if (d.abducted) { parts.push(`${nm(d)} is out of reach`); continue; }
-      if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; fl.push('burned'); }
-      if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; fl.push('poisoned'); }
-      if (m.stun && Math.random() < ch(a, d, m.stun, 'stun') && !d.stun) { d.stun = 1; fl.push('stunned'); }
-      if (m.para && Math.random() < ch(a, d, m.para, 'para') && !d.para) { d.para = 3; fl.push('paralyzed'); }
-      if (m.blind && Math.random() < ch(a, d, m.blind, 'blind') && !d.blind) { d.blind = 3; fl.push('blinded'); }
-      if (m.confuse && Math.random() < ch(a, d, m.confuse, 'confuse') && !d.confuse) { d.confuse = 3; fl.push('confused'); }
+      if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; d.burnP = !!m.burnP; fl.push(m.burnP ? 'burned+' : 'burned'); }
+      if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; d.poisonP = !!m.poisonP; fl.push(m.poisonP ? 'poisoned+' : 'poisoned'); }
+      if (m.stun && Math.random() < ch(a, d, m.stun, 'stun') && !d.stun) { d.stun = m.stunP ? 2 : 1; fl.push(m.stunP ? 'stunned+ (2 turns)' : 'stunned'); }
+      if (m.para && Math.random() < ch(a, d, m.para, 'para') && !d.para) { d.para = 3; d.paraP = !!m.paraP; fl.push(m.paraP ? 'paralyzed+' : 'paralyzed'); }
+      if (m.blind && Math.random() < ch(a, d, m.blind, 'blind') && !d.blind) { d.blind = 3; d.blindP = !!m.blindP; fl.push(m.blindP ? 'blinded+' : 'blinded'); }
+      if (m.confuse && Math.random() < ch(a, d, m.confuse, 'confuse') && !d.confuse) { d.confuse = 3; d.confuseP = !!m.confuseP; fl.push(m.confuseP ? 'confused+' : 'confused'); }
       if (m.staDrain) { const v = Math.min(d.sta, m.staDrain); d.sta -= v; a.sta = Math.min(a.staMax, a.sta + v); if (v) fl.push(`-${v} STA`); }
       if (m.weaken) fl.push(stageFx(d, 'sOff', -m.weaken));
       if (m.expose) expKeys(m).forEach(k => fl.push(stageFx(d, k, -m.expose)));
@@ -903,7 +905,7 @@ function act0(a, m, target, allies, foes, L) {
       for (let h = 0; h < (m.hits || 1); h++) {
         if (d.hp <= 0) break;
         if (d.hp <= 0) break;
-        if (!m.sure && !a.sure && Math.random() < (a.blind ? 0.35 : 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
+        if (!m.sure && !a.sure && Math.random() < (a.blind ? (a.blindP ? 0.55 : 0.35) : 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
         const marked = d.marked > 0; if (marked) d.marked--;
         const crit = marked || Math.random() < critOf(a, m);
         if (crit) crits++;
@@ -916,17 +918,17 @@ function act0(a, m, target, allies, foes, L) {
         if (multi) { fx({ u:d, k:'dmg', v:dmg, crit, eff, el:m.el, small:true, delay:h * 230, snd:crit ? 'crit' : 'hit', hp:Math.max(0, d.hp), max:d.max, from:firstFx ? hp0 : undefined }); firstFx = false; }
         if (has(d, 'thorns') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
         if (hasPas(d, 'bramble') && dmg > 0) { const r = Math.max(1, Math.round(dmg * 0.15)); a.hp -= r; thorn += r; }
-        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'kiln') && !a.burn && Math.random() < 0.25) { a.burn = 3; fl.push(`${nm(a)} burned by its molten core`); }
+        if (m.t === 'foe' && dmg > 0 && hasPas(d, 'kiln') && !a.burn && Math.random() < 0.25) { a.burn = 3; a.burnP = false; fl.push(`${nm(a)} burned by its molten core`); }
         if (m.t === 'foe' && dmg > 0 && hasPas(d, 'staticbody') && !a.para && Math.random() < 0.25) { a.para = 3; fl.push(`${nm(a)} paralyzed by static`); }
         if (d.hp <= 0 && has(d, 'plume') && !d.plumeUsed) { d.hp = 1; d.plumeUsed = true; fl.push('held on'); }
         if (d.hp <= 0 && d.pas === 'standing' && !d.standUsed) { d.hp = 1; d.standUsed = true; fl.push('STILL STANDING'); fx({ u:d, k:'num', t:'STILL STANDING', c:'#f9c74f', burst:'buff' }); }
         if (d.pas === 'spite' && dmg > 0 && d.hp > 0) { const tgt = pick(alive(allies)); if (tgt) { const r = Math.max(1, Math.round(dmg * 0.2)); tgt.hp -= r; tgt.hit = true; fl.push(`spite hits ${nm(tgt)} for ${r}`); fx({ u:tgt, k:'dmg', v:r, el:d.el, small:true, ko:tgt.hp <= 0, tags:['SPITE'] }); } }
-        if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; fl.push('burned'); }
-        if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; fl.push('poisoned'); }
-        if (m.stun && Math.random() < ch(a, d, m.stun, 'stun') && !d.stun) { d.stun = 1; fl.push('stunned'); }
-        if (m.para && Math.random() < ch(a, d, m.para, 'para') && !d.para) { d.para = 3; fl.push('paralyzed'); }
-        if (m.blind && Math.random() < ch(a, d, m.blind, 'blind') && !d.blind) { d.blind = 3; fl.push('blinded'); }
-        if (m.confuse && Math.random() < ch(a, d, m.confuse, 'confuse') && !d.confuse) { d.confuse = 3; fl.push('confused'); }
+        if (m.burn && Math.random() < ch(a, d, m.burn, 'burn') && !d.burn) { d.burn = hasPas(a, 'kindling') ? 4 : 3; d.burnP = !!m.burnP; fl.push(m.burnP ? 'burned+' : 'burned'); }
+        if (m.poison && Math.random() < ch(a, d, m.poison, 'poison') && !d.poison) { d.poison = 4; d.poisonP = !!m.poisonP; fl.push(m.poisonP ? 'poisoned+' : 'poisoned'); }
+        if (m.stun && Math.random() < ch(a, d, m.stun, 'stun') && !d.stun) { d.stun = m.stunP ? 2 : 1; fl.push(m.stunP ? 'stunned+ (2 turns)' : 'stunned'); }
+        if (m.para && Math.random() < ch(a, d, m.para, 'para') && !d.para) { d.para = 3; d.paraP = !!m.paraP; fl.push(m.paraP ? 'paralyzed+' : 'paralyzed'); }
+        if (m.blind && Math.random() < ch(a, d, m.blind, 'blind') && !d.blind) { d.blind = 3; d.blindP = !!m.blindP; fl.push(m.blindP ? 'blinded+' : 'blinded'); }
+        if (m.confuse && Math.random() < ch(a, d, m.confuse, 'confuse') && !d.confuse) { d.confuse = 3; d.confuseP = !!m.confuseP; fl.push(m.confuseP ? 'confused+' : 'confused'); }
         // Per-hit rolls: every hit that lands gets its own chance (misses roll nothing).
         if (d.hp > 0) for (const [k, sts] of [['weakenCh', ['sOff']], ['exposeCh', expKeys(m)], ['slowCh', ['sSpd']]]) if (m[k] && Math.random() < ch(a, d, m[k], k)) sts.forEach(st => fl.push(stageFx(d, st, -1)));
         if (m.staDrain && multi) { const v = Math.min(d.sta, m.staDrain); d.sta -= v; a.sta = Math.min(a.staMax, a.sta + v); drained += v; }
@@ -965,7 +967,7 @@ function act0(a, m, target, allies, foes, L) {
       const sp = [];
       for (const o of alive(foes).filter(o => !tg.includes(o))) {
         let v = Math.max(1, Math.round(total * 0.2)); const ab = Math.min(o.shield, v); o.shield -= ab; v -= ab; o.hp -= v; o.hit = true;
-        const got = []; [['burn', 3, 'burned'], ['poison', 4, 'poisoned'], ['stun', 1, 'stunned'], ['para', 3, 'paralyzed'], ['blind', 3, 'blinded'], ['confuse', 3, 'confused']].forEach(([k, n, w]) => { if (m[k] && !o[k] && Math.random() < ch(a, o, m[k], k)) { o[k] = n; got.push(w); } });
+        const got = []; [['burn', 3, 'burned'], ['poison', 4, 'poisoned'], ['stun', 1, 'stunned'], ['para', 3, 'paralyzed'], ['blind', 3, 'blinded'], ['confuse', 3, 'confused']].forEach(([k, n, w]) => { if (m[k] && !o[k] && Math.random() < ch(a, o, m[k], k)) { o[k] = k === 'stun' && m.stunP ? 2 : n; o[k + 'P'] = !!m[k + 'P']; got.push(w + (m[k + 'P'] ? '+' : '')); } });
         fx({ u:o, k:'dmg', v, el:m.el, small:true, ko:o.hp <= 0, tags:got.map(g => g.toUpperCase()) }); sp.push(`${nm(o)} -${v}${got.length ? ' ' + got.join('/') : ''}${o.hp <= 0 ? ' KO' : ''}`);
       }
       if (sp.length) msg += ' Volley: ' + sp.join(', ') + '.';
@@ -1061,8 +1063,8 @@ function endRound(x, L) {
     alive(b.team).filter(o => !o.abducted).forEach(o => {
       let v = calcDmg(b.owner, o, { pow:b.pow }, effVs(b.el, o), false);
       const ab = Math.min(o.shield, v); o.shield -= ab; v -= ab; o.hp -= v; o.hit = true;
-      if (b.burn && Math.random() < b.burn && !o.burn) o.burn = 3;
-      if (b.stun && !o.stun && Math.random() < ch(b.owner, o, b.stun, 'stun')) o.stun = 1;
+      if (b.burn && Math.random() < b.burn && !o.burn) { o.burn = 3; o.burnP = !!b.burnP; }
+      if (b.stun && !o.stun && Math.random() < ch(b.owner, o, b.stun, 'stun')) o.stun = b.stunP ? 2 : 1;
       fx({ u:o, k:'dmg', v, el:b.el, ko:o.hp <= 0, snd:'crit' }); hit.push(`${nm(o)} -${v}${o.hp <= 0 ? ' KO' : ''}`);
     });
     if (hit.length) L.push(`BOOM! The bomb explodes: ${hit.join(', ')}.`);
@@ -1084,8 +1086,8 @@ function endRound(x, L) {
   if (x.passShieldT > 0 && --x.passShieldT <= 0) { x.shield = Math.max(0, x.shield - x.passShield); x.passShield = 0; }
   const n = nm(x);
   const plume = () => { if (x.hp <= 0 && has(x, 'plume') && !x.plumeUsed) { x.hp = 1; x.plumeUsed = true; L.push(`${n} holds on with the Phoenix Plume!`); } if (x.hp <= 0 && x.pas === 'standing' && !x.standUsed) { x.hp = 1; x.standUsed = true; L.push(`${n} is still standing!`); } };
-  if (x.burn > 0) { const v = Math.max(1, Math.round(x.max * 0.08)); x.hp -= v; x.burn--; x.hit = true; plume(); L.push(`${n} takes ${v} burn damage.${x.hp <= 0 ? ' KO!' : ''}`); fx({ u:x, k:'dmg', v, el:'fire', small:true, ko:x.hp <= 0, snd:'fire' }); }
-  if (x.hp > 0 && x.poison > 0) { const v = Math.max(1, Math.round(x.max * 0.08)); x.hp -= v; x.poison--; x.hit = true; plume(); L.push(`${n} takes ${v} poison damage.${x.hp <= 0 ? ' KO!' : ''}`); fx({ u:x, k:'dmg', v, el:'poison', small:true, ko:x.hp <= 0, snd:'status' }); }
+  if (x.burn > 0) { const v = Math.max(1, Math.round(x.max * (x.burnP ? 0.12 : 0.08))); x.hp -= v; x.burn--; x.hit = true; plume(); L.push(`${n} takes ${v} burn damage.${x.hp <= 0 ? ' KO!' : ''}`); fx({ u:x, k:'dmg', v, el:'fire', small:true, ko:x.hp <= 0, snd:'fire' }); }
+  if (x.hp > 0 && x.poison > 0) { const v = Math.max(1, Math.round(x.max * (x.poisonP ? 0.12 : 0.08))); x.hp -= v; x.poison--; x.hit = true; plume(); L.push(`${n} takes ${v} poison damage.${x.hp <= 0 ? ' KO!' : ''}`); fx({ u:x, k:'dmg', v, el:'poison', small:true, ko:x.hp <= 0, snd:'status' }); }
   if (x.hp > 0 && x.regen && x.regen.length) { const h = heal(x, x.max * x.regen.reduce((s, r) => s + r[0], 0)); x.regen.forEach(r => r[1]--); x.regen = x.regen.filter(r => r[1] > 0); if (h) { L.push(`${n} regenerates ${h} HP.`); fx({ u:x, k:'heal', v:h }); } }
   if (x.para > 0) x.para--;
   if (x.blind > 0) x.blind--;

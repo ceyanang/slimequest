@@ -860,15 +860,15 @@ function showWorldClear() {
 function statusTags(x) {
   const t = [];
   if (x.shield) t.push(['SH ' + x.shield, '#4cc9f0']);
-  if (x.burn) t.push(['BURN', '#f94144']);
-  if (x.poison) t.push(['PSN', '#9b5de5']);
-  if (x.stun) t.push(['STUN', '#f9c74f']);
+  if (x.burn) t.push([x.burnP ? 'BURN+' : 'BURN', '#f94144']);
+  if (x.poison) t.push([x.poisonP ? 'PSN+' : 'PSN', '#9b5de5']);
+  if (x.stun) t.push([x.stun > 1 ? 'STUN x2' : 'STUN', '#f9c74f']);
   if (x.dazed && !x.stun) t.push(['DAZED', '#b8a04a']);
-  if (x.regen && x.regen.length) t.push([x.regen.length > 1 ? `REGEN x${x.regen.length}` : 'REGEN', '#90be6d']);
-  if (x.para) t.push(['PARA', '#f9c74f']);
-  if (x.blind) t.push(['BLIND', '#5a5078']);
+  if (x.regen && x.regen.length) { const rp = x.regen.reduce((s, r) => s + r[0], 0) >= 0.15 ? 'REGEN+' : 'REGEN'; t.push([x.regen.length > 1 ? `${rp} x${x.regen.length}` : rp, '#90be6d']); }
+  if (x.para) t.push([x.paraP ? 'PARA+' : 'PARA', '#f9c74f']);
+  if (x.blind) t.push([x.blindP ? 'BLIND+' : 'BLIND', '#5a5078']);
   if (x.veil) t.push(['VEIL', '#8a7fb0']);
-  if (x.confuse) t.push(['CONF', '#d17fe8']);
+  if (x.confuse) t.push([x.confuseP ? 'CONF+' : 'CONF', '#d17fe8']);
   if (x.taunt) t.push(['TAUNT', '#f94144']);
   if (x.guardT > 0 && x.guardBy && x.guardBy.hp > 0) t.push(['GUARDED', '#4cc9f0']);
   if (x.counter) t.push(['COUNTER', '#4cc9f0']);

@@ -283,7 +283,7 @@ const COMBO_MOVES = {
     { n:'Blazing Fan', el:'fire', pow:40, s:45, t:'foes', burn:0.4 },
     { n:'Immolate', el:'fire', pow:130, s:65, t:'foe', execute:true, recoil:0.1 },
     { n:'Ember Dagger', el:'fire', pow:50, s:20, t:'foe', critBonus:0.15, selfHaste:1 },
-    { n:'Smoke Bomb', el:'fire', pow:0, s:25, t:'foes', blind:0.6 },
+    { n:'Smoke Bomb', el:'fire', pow:0, s:25, t:'foes', blind:0.6, blindP:true },
     { n:'Hot Pursuit', el:'fire', pow:0, s:30, t:'self', offUp:1, haste:2 }],
   water_fighter: [{ n:'Tidal Wave',    el:'water', pow:35, s:45, t:'foes',   weaken:1 },
     { n:'Washing Strike', el:'water', pow:60,  s:40, t:'foe', dispel:true, cleanseTeam:true }, { n:'Whale Strike', el:'water', pow:165, s:55, t:'foe', selfStun:true },
@@ -353,7 +353,7 @@ const COMBO_MOVES = {
     { n:'Flame Pillar', el:'fire', pow:110, s:55, t:'foe', critBonus:0.2 },
     { n:'Supernova', el:'fire', pow:110, s:80, t:'foes', expose:1, selfStun:true },
     { n:'Heat Ray', el:'fire', pow:85, s:40, t:'foe', dispel:true },
-    { n:'Combustion', el:'fire', pow:0, s:25, t:'foe', burn:1, expose:1 },
+    { n:'Combustion', el:'fire', pow:0, s:25, t:'foe', burn:1, burnP:true, expose:1 },
     { n:'Pyroclasm', el:'fire', pow:80, s:65, t:'foes', blind:0.3, recoil:0.1 }],
   water_mage:       [{ n:'Torrent',         el:'water',     pow:45, s:45, t:'foes',   weaken:1 },
     { n:'Tsunami', el:'water', pow:75, s:60, t:'foes', slow:1 },
@@ -370,7 +370,7 @@ const COMBO_MOVES = {
   lightning_mage:   [{ n:'Chain Lightning', el:'lightning', pow:55, s:40, t:'foes', para:0.35 },
     { n:'Thunderstorm', el:'lightning', pow:50, s:40, t:'foes', leech:0.25 },
     { n:'Storm Lock', el:'lightning', pow:65, s:60, t:'foes', stun:0.4, slow:1 },
-    { n:'Shock Net', el:'lightning', pow:40, s:25, t:'foe', para:0.8, slow:1 },
+    { n:'Shock Net', el:'lightning', pow:40, s:25, t:'foe', para:0.8, paraP:true, slow:1 },
     { n:'Static Prison', el:'lightning', pow:50, s:35, t:'foe', stun:0.4 },
     { n:'EMP', el:'lightning', pow:35, s:45, t:'foes', staDrain:25, weaken:1 }],
   earth_mage:       [{ n:'Meteor Strike', el:'earth', pow:90, s:55, t:'foe', splash:30 },
@@ -459,7 +459,7 @@ const COMBO_MOVES = {
     { n:'Shadow Bolt', el:'dark', pow:90, s:40, t:'foe', leech:0.25 },
     { n:'Hexfire', el:'dark', pow:75, s:35, t:'foe', poison:0.6, expose:1 },
     { n:'Dark Pact', el:'dark', pow:0, s:0, t:'self', offUp:3, hpCost:0.2 }],
-  dark_ranger:      [{ n:'Nightshade Arrow',el:'dark',    pow:50, s:45, t:'foe',    poison:1, blind:0.5 },
+  dark_ranger:      [{ n:'Nightshade Arrow',el:'dark',    pow:50, s:45, t:'foe',    poison:1, poisonP:true, blind:0.5 },
     { n:'Death Volley', el:'dark', pow:45, s:45, t:'foes', poison:0.4 },
     { n:'Night Hunter', el:'dark', pow:120, s:60, t:'foe', execute:true, critBonus:0.2 },
     { n:'Shadow Arrow', el:'dark', pow:50, s:25, t:'foe', slow:1 },
@@ -484,7 +484,7 @@ const COMBO_MOVES = {
   psychic_mage:     [{ n:'Psystorm',        el:'psychic', pow:55, s:45, t:'foes',   confuse:0.35 },
     { n:'Mind Drain', el:'psychic', pow:55, s:45, t:'foes', staDrain:20 },
     { n:'Mindstorm', el:'psychic', pow:90, s:75, t:'foes', weaken:1, expose:1 },
-    { n:'Mind Lock', el:'psychic', pow:50, s:25, t:'foe', confuse:0.8 },
+    { n:'Mind Lock', el:'psychic', pow:50, s:25, t:'foe', confuse:0.8, confuseP:true },
     { n:'Mana Burn', el:'psychic', pow:65, s:30, t:'foe', dispel:true, staDrain:30 },
     { n:'Psychic Crush', el:'psychic', pow:70, s:35, t:'foe', confuse:0.4, bonusVs:'confuse' }],
   psychic_ranger:   [{ n:'Mind Arrow', el:'psychic', pow:35, s:35, t:'foes', slow:1 },
@@ -558,7 +558,7 @@ const COMBO_MOVES = {
     { n:'Gaia Hammer', el:'life', pow:80, s:70, t:'foes', poison:0.6, teamLeech:0.2 },
     { n:'Briar Hammer', el:'life', pow:55, s:30, t:'foe', poison:0.5 },
     { n:'Root Guard', el:'life', pow:0, s:30, t:'ally', guard:3, cleanse:true },
-    { n:'Overgrown Bastion', el:'life', pow:0, s:45, t:'allies', regen:[0.1,3] }],
+    { n:'Overgrown Bastion', el:'life', pow:0, s:45, t:'allies', regen:[0.15,3] }],
   lightning_bulwark: [{ n:'Static Shield', el:'lightning', pow:0, s:30, t:'self', shieldPct:0.25, haste:1 },
     { n:'Thunder Wall', el:'lightning', pow:0, s:50, t:'allies', shieldPct:0.1, haste:1 },
     { n:'Storm Anvil', el:'lightning', pow:110, s:60, t:'foe', staDrain:30 },
@@ -567,7 +567,7 @@ const COMBO_MOVES = {
     { n:'Arc Slam', el:'lightning', pow:50, s:45, t:'foes', para:0.3 }],
   earth_bulwark: [{ n:'Granite Rest', el:'earth', pow:0, s:35, t:'self', healPct:0.3, armor:1 },
     { n:'Quake Hammer', el:'earth', pow:60, s:50, t:'foes', expose:1 },
-    { n:'Tectonic Crush', el:'earth', pow:140, s:70, t:'foe', pierce:true, selfStun:true },
+    { n:'Tectonic Crush', el:'earth', pow:140, s:70, t:'foe', pierce:true, selfStun:true, stun:0.2, stunP:true },
     { n:'Boulder Hammer', el:'earth', pow:60, s:30, t:'foe', expose:1 },
     { n:'Tremor Stomp', el:'earth', pow:40, s:35, t:'foes', slow:1 },
     { n:'Living Fortress', el:'earth', pow:0, s:45, t:'allies', armor:1, selfTaunt:2 }],
@@ -761,12 +761,13 @@ function mdesc(m) {
   const s = [];
   if (m.pow) s.push(`<span class="pw" style="color:${powColor(m)}">${m.hits > 1 ? `POW ${m.pow} x${m.hits}` : `POW ${m.pow}`}</span>`);
   if (m.bulk) s.push(`uses DEF for ${pct(m.bulk)} of its power`);
-  if (m.burn) s.push(m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`);
-  if (m.poison) s.push(m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`);
-  if (m.stun) s.push(`${pct(Math.min(1, m.stun * STUN_MULT))} stun`);
-  if (m.para) s.push(m.para >= 1 ? 'paralyzes' : `${pct(m.para)} paralyze`);
-  if (m.blind) s.push(`${pct(m.blind)} blind`);
-  if (m.confuse) s.push(`${pct(m.confuse)} confuse`);
+  const PL = k => m[k + 'P'] ? '+' : '';   // + versions: burn+/poison+ 12% a turn, para+ 50%, blind+ 55% miss, confuse+ 60%, stun+ 2 turns
+  if (m.burn) s.push((m.burn >= 1 ? 'burns' : `${pct(m.burn)} burn`) + PL('burn'));
+  if (m.poison) s.push((m.poison >= 1 ? 'poisons' : `${pct(m.poison)} poison`) + PL('poison'));
+  if (m.stun) s.push(`${pct(Math.min(1, m.stun * STUN_MULT))} stun${m.stunP ? '+ (2 turns)' : ''}`);
+  if (m.para) s.push((m.para >= 1 ? 'paralyzes' : `${pct(m.para)} paralyze`) + PL('para'));
+  if (m.blind) s.push(`${pct(m.blind)} blind${PL('blind')}`);
+  if (m.confuse) s.push(`${pct(m.confuse)} confuse${PL('confuse')}`);
   if (m.staDrain) s.push(`drain ${m.staDrain} STA`);
   if (m.mendAlly) s.push(`heals hurt ally ${pct(m.mendAlly)} of dmg`);
   if (m.leech) s.push(`drain ${pct(m.leech)}`);
@@ -775,7 +776,7 @@ function mdesc(m) {
   if (m.healPct) s.push(`heal ${pct(m.healPct)}`);
   if (m.revive) s.push(`revive at ${pct(m.revive)}`);
   if (m.shieldPct) s.push(`shield ${pct(m.shieldPct)}`);
-  if (m.regen) s.push(`regen ${pct(m.regen[0])}/turn x${m.regen[1]} (stacks)`);
+  if (m.regen) s.push(`regen${m.regen[0] >= 0.15 ? '+' : ''} ${pct(m.regen[0])}/turn x${m.regen[1]} (stacks)`);
   const tgt = m.t === 'foes' ? 'foes\' ' : m.t === 'foe' ? 'foe\'s ' : m.t === 'allies' ? 'team\'s ' : m.t === 'self' ? '' : 'ally\'s ';
   if (m.offUp) s.push(stWord(m.offUp, tgt + 'OFF'));
   if (m.weaken) s.push(stWord(-m.weaken, tgt + 'OFF'));
