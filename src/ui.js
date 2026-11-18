@@ -224,7 +224,7 @@ function renderPick() {
     ${SAVED ? `<div class="resume"><div><b>SAVED RUN</b> · ${REALM_DEF[SAVED.realm || 0].name.split(':')[0]} · World ${SAVED.w + 1}: ${REALM_WORLDS[SAVED.realm || 0][SAVED.w].name}<br><small>${SAVED.party.map(p => `${p.name} Lv${p.lvl}`).join(', ')}</small></div><button class="primary" id="resume">RESUME RUN</button></div>` : ''}
     <div class="hero"><div class="dicewrap">${img(unitURL(p), 'mid bob')}${fzOn ? '<button class="dice" id="lookdice" title="Reroll look">&#127922;</button>' : ''}</div><div><div class="name">${fzOn ? p.kind : ELEM[el].name + ' ' + CLASSES[cls].name} Slime</div>
     </div></div>
-    ${statBars(p, STAR_EDIT && !fzOn ? comboKey(el, cls) : null)}
+    ${statBars(p, STAR_EDIT ? comboKey(el, cls) : null)}${STAR_EDIT && fzOn ? `<div class="tip">Star points go to your first slime, the <b>${ELEM[el].name} ${CLASSES[cls].name}</b>; the fused preview updates as you spend.</div>` : ''}
     ${starBox(el, cls)}
     <div class="section">REALM</div>
     <div class="row">${REALM_DEF.map((R, r) => `<div class="card choice realmc ${r === choice.realm ? 'on' : ''} ${REALM_LOCKED(r) ? 'locked' : ''}" data-realm="${r}"><div class="name">${R.name}</div><div class="trait">${REALM_LOCKED(r) ? `Locked: clear Realm ${r} first.` : R.blurb}</div></div>`).join('')}</div>
