@@ -171,7 +171,7 @@ const CREATURES = {
 const R3_NATIVE = [['ninja', 'kappa', 'oni'], ['guard', 'fogghost', 'pigeon'], ['lion', 'elephant', 'hyena'], ['kangaroo', 'dropbear', 'emu'],
                    ['penguin', 'icegolem', 'seal'], ['frog', 'jaguar', 'parrot'], ['eagle', 'linebacker', 'tourist']];
 const NATIVE_RATE = 0.5;
-const nativesOf = w => REALM === 2 ? R3_NATIVE[w] || null : null;
+const nativesOf = w => REALM === 2 ? R3_NATIVE[w] || null : REALM === 3 ? R4_NATIVE[w] || null : null;
 const crId = role => role && role.startsWith('cr_') ? role.slice(3) : null;
 function creatureEnemy(w, L, id) {
   const C = CREATURES[id];
@@ -603,6 +603,7 @@ const MOON_FIGHTS = [
     const team = [h, tr(), tr()]; h.teamRef = team; return team; }
 ];
 function bossTeam(w, L, node) {
+  if (REALM === 3) return isR4Finale(w, node) ? motherEarth(w, L + R4_FINALE_LV) : BOSSES4[Math.min(w, BOSSES4.length - 1)](w, L);
   if (REALM === 2) {
     if (isMoon(w)) { const gi = node && node.gi != null ? node.gi : MOON_FIGHTS.length;   // the Elite 4 climb in level; the Sun sits above them all
       return gi < MOON_FIGHTS.length ? MOON_FIGHTS[gi](w, L - 2 + 2 * gi) : BOSSES3[MOON_W](w, L + SUN_LV); }
@@ -637,7 +638,7 @@ function makeFoes(w, node, partySize) {
 /* ================= battle engine (shared by the game and the balance sim) ================= */
 let FX = [];
 const fx = e => { if (FX) FX.push(e); };
-function heal(x, amt) { const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
+function heal(x, amt) { amt *= (planetRule() || {}).healMul || 1; const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
 const nm = x => x.name;
 const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0, a) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
 const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
@@ -669,7 +670,7 @@ function calcDmg(a, d, m, eff, crit) {
   if (hasPas(d, 'mountain') && m.t === 'foes') v *= 0.75;
   if (hasPas(d, 'mindwall') && sp) v *= 0.75;
   if (hasPas(a, 'grudge') && a.hp < a.max / 2) v *= 1.25;
-  v *= ultraDmgMul(a, d, m, sp);
+  v *= ultraDmgMul(a, d, m, sp) * planetDmgMul(a, m);
   return Math.max(1, Math.round(v));
 }
 function resolveTargets(a, m, target, allies, foes) {
@@ -963,6 +964,7 @@ function battleStart(team, foes, node) {
   foes.forEach(u => { if (u.heat) u.heat.team = team; });
   team.forEach(u => { if (ultraPerk(u)) u.teamRef = team; });
   ultraStart(team, foes);
+  planetStart(team, foes);
   [team, foes].forEach(side => side.forEach(u => { if (hasPas(u, 'sanctuary')) u.teamRef = side; }));   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
@@ -1091,7 +1093,7 @@ function act0(a, m, target, allies, foes, L) {
       for (let h = 0; h < (m.hits || 1); h++) {
         if (d.hp <= 0) break;
         if (d.hp <= 0) break;
-        if (!m.sure && !a.sure && Math.random() < (a.blind ? (a.blindP ? 0.55 : 0.35) : 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
+        if (!m.sure && !a.sure && Math.random() < (a.blind ? (a.blindP ? 0.55 : 0.35) : 0) + ((planetRule() || {}).miss || 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
         const marked = d.marked > 0; if (marked) d.marked--;
         const crit = marked || Math.random() < critOf(a, m);
         if (crit) crits++;
@@ -1203,7 +1205,8 @@ function act0(a, m, target, allies, foes, L) {
 const orderKey = u => effSpd(u) + (u._jit || 0) + (u.first ? 1000 : 0);
 function roundOrder(units, pBias = 0.05) {
   units.forEach(u => u._jit = Math.random() * 0.9 + (u.side === 'P' ? pBias : 0));
-  let o = units.slice().sort((a, b) => orderKey(b) - orderKey(a));
+  const rev = (planetRule() || {}).reverse;   // Uranus: slowest first
+  let o = units.slice().sort((a, b) => rev ? orderKey(a) - orderKey(b) : orderKey(b) - orderKey(a));
   o.filter(u => u.twice).forEach(u => o.splice(Math.min(o.length, Math.ceil(o.length / 2) + 1), 0, u));
   return o;
 }
@@ -1245,6 +1248,7 @@ function endRound(x, L) {
   if (x.hp > 0 && hasPas(x, 'photo')) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
   summonTick(x, L);
   ultraRound(x, L);
+  planetRound(x);
   if (x.pas === 'guardian' && x.hp > 0 && x.teamRef) {   // Guardian Angel: shield the most hurt ally
     const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0];
     if (w && w.hp < w.max) { const s = Math.round(w.max * 0.2); w.shield += s; L.push(`${nm(x)}'s Guardian Angel shields ${nm(w)} (+${s}).`); fx({ u:w, k:'num', t:`+${s} shield`, c:'#9ad0ff', burst:'buff' }); }
@@ -1287,7 +1291,7 @@ function endRound(x, L) {
   if (x.taunt > 0) x.taunt--;
   if (x.guardT > 0 && --x.guardT <= 0) x.guardBy = null;
   if (x.hp > 0 && has(x, 'moss')) { const h = heal(x, x.max * 0.06); if (h) { L.push(`${n}'s moss heals ${h} HP.`); fx({ u:x, k:'heal', v:h }); } }
-  x.sta = Math.min(x.staMax, x.sta + STA_REGEN + (has(x, 'ring') ? 10 : 0));
+  x.sta = Math.min(x.staMax, x.sta + Math.round((STA_REGEN + (has(x, 'ring') ? 10 : 0)) * ((planetRule() || {}).staRegenMul || 1)));
 }
 // Bosses with an 'undying' trick get back up once when they fall (Matilda's vows, the Narrator's deus ex machina).
 function cheatDeath(units, L) {
@@ -1535,6 +1539,7 @@ function genMap(w) {
       n.next = [...new Set(idx.filter(j => j >= 0 && j < b))].map(j => rows[f + 1][j]);
     });
   }
+  if (REALM === 3 && w === 7) rows[last].forEach(n => { n.gi = 0; });   // Neptune: the Dwarf Planet first, then Mother Earth
   return rows;
 }
 // The Moon: a straight walk across the surface. Landing (full heal on arrival), the Elite 4 back to back,

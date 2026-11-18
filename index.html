@@ -4568,12 +4568,25 @@ const REALM_WORLDS = [[
     { name:'Tropical Forests', bg:'#0c2014', els:['life','life','water','psychic','lightning','dark'] },
     { name:'USA',              bg:'#10142a', els:['lightning','fire','earth','light','water'] },
     { name:'The Moon',         bg:'#0a0a14', els:['light','dark','psychic'] }
+  ],
+  // Realm 4: Lights Out. With the Sun gone dark, the slimes leave a ruined Earth and take the whole solar system.
+  // Every planet bends one combat rule (PLANET_RULES in realm4.js). Neptune ends with two bosses back to back.
+  [
+    { name:'Ruined Earth', bg:'#1c1612', els:['earth','dark','fire','life','lightning'] },
+    { name:'Mercury',      bg:'#2a1608', els:['fire','lightning','light','earth','psychic'] },
+    { name:'Venus',        bg:'#1e2a10', els:['life','dark','fire','psychic','water'] },
+    { name:'Mars',         bg:'#2a0e0a', els:['earth','fire','dark','lightning','light'] },
+    { name:'Jupiter',      bg:'#2a1c10', els:['lightning','lightning','water','psychic','earth'] },
+    { name:'Saturn',       bg:'#221a10', els:['psychic','light','dark','earth','water'] },
+    { name:'Uranus',       bg:'#0c2226', els:['water','water','light','psychic','lightning'] },
+    { name:'Neptune',      bg:'#0a1230', els:['water','dark','psychic','light','earth','life'] }
   ]];
 // The realm you are playing: WORLDS and BOSS_INFO point at it (see setRealm). Realm 2 needs Realm 1 cleared.
 const REALM_DEF = [
   { name:'Realm 1: The Classic Quest', blurb:'Eight worlds of fantasy heroes.', foeHp:1, foeOff:1 },
   { name:'Realm 2: Genre Hop',         blurb:'Eight worlds, one for every kind of story.', foeHp:1.5, foeOff:1.22 },
-  { name:'Realm 3: World Domination',  blurb:'The slimes take over the Earth... then the Moon.', foeHp:1.6, foeOff:1.31 }
+  { name:'Realm 3: World Domination',  blurb:'The slimes take over the Earth... then the Moon.', foeHp:1.6, foeOff:1.31 },
+  { name:'Realm 4: Lights Out',        blurb:'The Sun is gone. Take the whole solar system.', foeHp:1.8, foeOff:1.45 }
 ];
 const MOON_W = 7;   // Realm 3's last world: the gauntlet (see genMap and the Moon bosses)
 const isMoon = (w = 0) => REALM === 2 && w === MOON_W;
@@ -4685,10 +4698,34 @@ const MOON_ELITE = [
   { name:'Dark Saber', spr:'b_darksaber', els:['dark'], intro:'DARK SABER breathes heavily through a bucket. "I am your... hold on." He checks a note card. "I am your FATHER. Probably."',
     outro:'Dark Saber\'s bucket falls off. "Don\'t look at me!" He runs away, cape catching on everything.' }
 ];
+// Realm 4 bosses (all humanoid). Index 7 is the Dwarf Planet; Mother Earth (R4_FINALE) waits right after him.
+const REALM4_BOSSES = [
+  { name:'Max Wreckage', spr:'b4_max', els:['earth', 'dark'], stand:['fighter', 'earth'], intro:'MAX WRECKAGE revs a buggy made of three other buggies. "The Sun went out and the world went with it. Everything out here is mine now, blobs. Including your goo."',
+    outro:'Max Wreckage climbs out of the wreck. "Fine. Take the stars. Earth\'s got nothing left anyway."' },
+  { name:'Quicksilver', spr:'b4_quick', els:['lightning'], stand:['rogue', 'lightning'], intro:'A silver blur stops in front of you. QUICKSILVER taps the winged helmet. "Mercury is the fastest planet. I am the fastest thing ON it. Try to keep up."',
+    outro:'Quicksilver is, for once, standing still. "...Rematch. Later. Much, much later."' },
+  { name:'Venus the Vain', spr:'b4_venus', els:['life', 'dark'], stand:['bard', 'life'], intro:'VENUS THE VAIN admires herself in a hand mirror as acid rain sizzles around her. "Ugh. Slimes. Let me fix that." She uncorks a perfume that melts the air.',
+    outro:'Venus checks her mirror. A single hair is out of place. She shrieks and flees into the clouds.' },
+  { name:'Commander Ares', spr:'b4_ares', els:['fire'], stand:['fighter', 'fire'], intro:'COMMANDER ARES plants his spear in the red dust. His soldiers lock shields. "Mars has never lost a war. Today is not a good day to start."',
+    outro:'Commander Ares salutes. "Mars... surrenders. Do not write that down."' },
+  { name:'Storm King Jove', spr:'b4_jove', els:['lightning', 'light'], stand:['sorcerer', 'lightning'], intro:'The Great Red Spot parts and STORM KING JOVE rises, lightning in his fist. "I AM THE LARGEST THING IN THIS SYSTEM. YOU ARE PUDDING."',
+    outro:'Storm King Jove sits on a cloud. "Largest planet. Smallest win. Fine."' },
+  { name:'The Ringmaster', spr:'b4_ring', els:['psychic', 'light'], stand:['bard', 'psychic'], intro:'THE RINGMASTER cracks her whip and Saturn\'s rings light up like a circus. "Laaadies and slimes! Tonight\'s main event: YOU, versus the greatest show in the galaxy!"',
+    outro:'The Ringmaster tips her hat. "What a show! You\'re hired. No? Fine. Take a bow."' },
+  { name:'Sir Tilt', spr:'b4_tilt', els:['water'], stand:['bulwark', 'water'], intro:'SIR TILT stands perfectly sideways, lance raised. "Uranus spins on its side. So do I. Nobody has ever hit me straight on."',
+    outro:'Sir Tilt finally falls over. Fully. "...Huh. So this is what upright feels like."' },
+  { name:'The Dwarf Planet', spr:'b4_dwarf', els:['earth', 'water'], stand:['fighter', 'earth'], intro:'A stout, heavily armored dwarf drags a huge axe across Neptune\'s ice, a tiny moon circling his head. THE DWARF PLANET: "Demoted. DEMOTED! I was a PLANET! Somebody is paying for this, and it is YOU."',
+    outro:'The Dwarf Planet drops his axe. "...Still a planet in my heart." Then the ice starts to shake.' }
+];
+// Neptune's true final boss, fought straight after the Dwarf Planet.
+const R4_FINALE = { name:'Mother Earth', spr:'b4_mother', els:['life', 'earth', 'water'], stand:['cleric', 'life'],
+  intro:'The ice cracks open and MOTHER EARTH rises, vast and green and furious, oceans in her hair. "Children. You put out my Sun. You froze my home. You will go no further."',
+  outro:'Mother Earth kneels... and smiles. "You did not destroy the world. You are what grew in the dark." She lights a new sun in her hands and gives it to you. The slimes rule the solar system.' };
 let BOSS_INFO = REALM1_BOSSES;
-function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES, REALM3_BOSSES][r]; }
+function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES, REALM3_BOSSES, REALM4_BOSSES][r]; }
+const isR4Finale = (w, node) => REALM === 3 && w === 7 && !!node && node.gi === 1;
 // Which boss a boss tile holds: the Moon's tiles carry an Elite 4 index (gi 0..3); every other boss tile is the world's boss.
-const bossInfoOf = (w, node) => node && node.gi != null && node.gi < MOON_ELITE.length ? MOON_ELITE[node.gi] : BOSS_INFO[w];
+const bossInfoOf = (w, node) => isR4Finale(w, node) ? R4_FINALE : isMoon(w) && node && node.gi != null && node.gi < MOON_ELITE.length ? MOON_ELITE[node.gi] : BOSS_INFO[w];
 
 /* ================= units ================= */
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -4863,7 +4900,7 @@ const CREATURES = {
 const R3_NATIVE = [['ninja', 'kappa', 'oni'], ['guard', 'fogghost', 'pigeon'], ['lion', 'elephant', 'hyena'], ['kangaroo', 'dropbear', 'emu'],
                    ['penguin', 'icegolem', 'seal'], ['frog', 'jaguar', 'parrot'], ['eagle', 'linebacker', 'tourist']];
 const NATIVE_RATE = 0.5;
-const nativesOf = w => REALM === 2 ? R3_NATIVE[w] || null : null;
+const nativesOf = w => REALM === 2 ? R3_NATIVE[w] || null : REALM === 3 ? R4_NATIVE[w] || null : null;
 const crId = role => role && role.startsWith('cr_') ? role.slice(3) : null;
 function creatureEnemy(w, L, id) {
   const C = CREATURES[id];
@@ -5295,6 +5332,7 @@ const MOON_FIGHTS = [
     const team = [h, tr(), tr()]; h.teamRef = team; return team; }
 ];
 function bossTeam(w, L, node) {
+  if (REALM === 3) return isR4Finale(w, node) ? motherEarth(w, L + R4_FINALE_LV) : BOSSES4[Math.min(w, BOSSES4.length - 1)](w, L);
   if (REALM === 2) {
     if (isMoon(w)) { const gi = node && node.gi != null ? node.gi : MOON_FIGHTS.length;   // the Elite 4 climb in level; the Sun sits above them all
       return gi < MOON_FIGHTS.length ? MOON_FIGHTS[gi](w, L - 2 + 2 * gi) : BOSSES3[MOON_W](w, L + SUN_LV); }
@@ -5329,7 +5367,7 @@ function makeFoes(w, node, partySize) {
 /* ================= battle engine (shared by the game and the balance sim) ================= */
 let FX = [];
 const fx = e => { if (FX) FX.push(e); };
-function heal(x, amt) { const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
+function heal(x, amt) { amt *= (planetRule() || {}).healMul || 1; const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
 const nm = x => x.name;
 const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0, a) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
 const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
@@ -5361,7 +5399,7 @@ function calcDmg(a, d, m, eff, crit) {
   if (hasPas(d, 'mountain') && m.t === 'foes') v *= 0.75;
   if (hasPas(d, 'mindwall') && sp) v *= 0.75;
   if (hasPas(a, 'grudge') && a.hp < a.max / 2) v *= 1.25;
-  v *= ultraDmgMul(a, d, m, sp);
+  v *= ultraDmgMul(a, d, m, sp) * planetDmgMul(a, m);
   return Math.max(1, Math.round(v));
 }
 function resolveTargets(a, m, target, allies, foes) {
@@ -5655,6 +5693,7 @@ function battleStart(team, foes, node) {
   foes.forEach(u => { if (u.heat) u.heat.team = team; });
   team.forEach(u => { if (ultraPerk(u)) u.teamRef = team; });
   ultraStart(team, foes);
+  planetStart(team, foes);
   [team, foes].forEach(side => side.forEach(u => { if (hasPas(u, 'sanctuary')) u.teamRef = side; }));   // the Sun's heat burns your side
   // move-slot passives work for both sides
   [team, foes].forEach(side => alive(side).forEach(u => {
@@ -5783,7 +5822,7 @@ function act0(a, m, target, allies, foes, L) {
       for (let h = 0; h < (m.hits || 1); h++) {
         if (d.hp <= 0) break;
         if (d.hp <= 0) break;
-        if (!m.sure && !a.sure && Math.random() < (a.blind ? (a.blindP ? 0.55 : 0.35) : 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
+        if (!m.sure && !a.sure && Math.random() < (a.blind ? (a.blindP ? 0.55 : 0.35) : 0) + ((planetRule() || {}).miss || 0) + (d.veil ? 0.3 : 0) + (m.t === 'foe' && hasPas(d, 'evasion') ? 0.25 : 0)) { misses++; continue; }
         const marked = d.marked > 0; if (marked) d.marked--;
         const crit = marked || Math.random() < critOf(a, m);
         if (crit) crits++;
@@ -5895,7 +5934,8 @@ function act0(a, m, target, allies, foes, L) {
 const orderKey = u => effSpd(u) + (u._jit || 0) + (u.first ? 1000 : 0);
 function roundOrder(units, pBias = 0.05) {
   units.forEach(u => u._jit = Math.random() * 0.9 + (u.side === 'P' ? pBias : 0));
-  let o = units.slice().sort((a, b) => orderKey(b) - orderKey(a));
+  const rev = (planetRule() || {}).reverse;   // Uranus: slowest first
+  let o = units.slice().sort((a, b) => rev ? orderKey(a) - orderKey(b) : orderKey(b) - orderKey(a));
   o.filter(u => u.twice).forEach(u => o.splice(Math.min(o.length, Math.ceil(o.length / 2) + 1), 0, u));
   return o;
 }
@@ -5937,6 +5977,7 @@ function endRound(x, L) {
   if (x.hp > 0 && hasPas(x, 'photo')) { const h = heal(x, x.max * 0.05); if (h) fx({ u:x, k:'heal', v:h, small:true }); }
   summonTick(x, L);
   ultraRound(x, L);
+  planetRound(x);
   if (x.pas === 'guardian' && x.hp > 0 && x.teamRef) {   // Guardian Angel: shield the most hurt ally
     const w = alive(x.teamRef).sort((p, q) => p.hp / p.max - q.hp / q.max)[0];
     if (w && w.hp < w.max) { const s = Math.round(w.max * 0.2); w.shield += s; L.push(`${nm(x)}'s Guardian Angel shields ${nm(w)} (+${s}).`); fx({ u:w, k:'num', t:`+${s} shield`, c:'#9ad0ff', burst:'buff' }); }
@@ -5979,7 +6020,7 @@ function endRound(x, L) {
   if (x.taunt > 0) x.taunt--;
   if (x.guardT > 0 && --x.guardT <= 0) x.guardBy = null;
   if (x.hp > 0 && has(x, 'moss')) { const h = heal(x, x.max * 0.06); if (h) { L.push(`${n}'s moss heals ${h} HP.`); fx({ u:x, k:'heal', v:h }); } }
-  x.sta = Math.min(x.staMax, x.sta + STA_REGEN + (has(x, 'ring') ? 10 : 0));
+  x.sta = Math.min(x.staMax, x.sta + Math.round((STA_REGEN + (has(x, 'ring') ? 10 : 0)) * ((planetRule() || {}).staRegenMul || 1)));
 }
 // Bosses with an 'undying' trick get back up once when they fall (Matilda's vows, the Narrator's deus ex machina).
 function cheatDeath(units, L) {
@@ -6227,6 +6268,7 @@ function genMap(w) {
       n.next = [...new Set(idx.filter(j => j >= 0 && j < b))].map(j => rows[f + 1][j]);
     });
   }
+  if (REALM === 3 && w === 7) rows[last].forEach(n => { n.gi = 0; });   // Neptune: the Dwarf Planet first, then Mother Earth
   return rows;
 }
 // The Moon: a straight walk across the surface. Landing (full heal on arrival), the Elite 4 back to back,
@@ -6416,10 +6458,198 @@ function upgradePool(team) {
   }
   return out;
 }
+/* ================= Realm 4: Lights Out =================
+   The solar system, starting from a ruined Earth. Every planet bends one combat rule (PLANET_RULES),
+   each has three native creatures, and Neptune ends with the Dwarf Planet and then Mother Earth back to back. */
+
+// ---- Planet Rules: one twist per world, shown on the map and in battle ----
+const PLANET_RULES = [
+  { n:'Radiation', d:'Everyone loses 3% HP at the end of each round, but all healing is 25% stronger.', tick:0.03, healMul:1.25 },
+  { n:'Scorching Day', d:'Fire attacks deal 25% more damage, and everyone loses 5 STA each round.', fireMul:1.25, staTick:5 },
+  { n:'Acid Rain', d:'Everyone, on both sides, starts each fight poisoned.', startPoison:true },
+  { n:'Dust Storms', d:'Every attack has an extra 10% chance to miss.', miss:0.1 },
+  { n:'Heavy Gravity', d:'Everyone starts each fight slowed, and multi-hit attacks deal 25% less damage.', startSlow:1, multiMul:0.75 },
+  { n:'Ring Shields', d:'Everyone, on both sides, starts each fight with a 15% shield.', startShield:0.15 },
+  { n:'Sideways Spin', d:'Turn order is reversed: the slowest units act first.', reverse:true },
+  { n:'Frozen Winds', d:'Stamina regenerates at half speed.', staRegenMul:0.5 }
+];
+const planetRule = () => REALM === 3 ? PLANET_RULES[LV_WORLD] || null : null;
+function planetStart(team, foes) {
+  const R = planetRule(); if (!R) return;
+  [...alive(team), ...alive(foes)].forEach(u => {
+    if (R.startPoison && !u.poison) { u.poison = 4; u.poisonP = false; }
+    if (R.startShield) u.shield += Math.round(u.max * R.startShield);
+    if (R.startSlow) stage(u, 'sSpd', -R.startSlow);
+  });
+}
+function planetRound(x) {   // per unit, end of round
+  const R = planetRule(); if (!R || x.hp <= 0) return;
+  if (R.tick) { const v = Math.max(1, Math.round(x.max * R.tick)); x.hp = Math.max(x.hp > v ? 1 : 0, x.hp - v); x.hit = true; fx({ u:x, k:'dmg', v, el:'dark', small:true, ko:x.hp <= 0 }); }
+  if (R.staTick) x.sta = Math.max(0, x.sta - R.staTick);
+}
+const planetDmgMul = (a, m) => { const R = planetRule(); if (!R) return 1; let v = 1; if (R.fireMul && m.el === 'fire') v *= R.fireMul; if (R.multiMul && (m.hits || 1) > 1) v *= R.multiMul; return v; };
+
+// ---- Natives: three one-element creatures per planet ----
+Object.assign(CREATURES, {
+  mrat:     { n:'Mutant Rat', el:'dark', cat:'p', hp:0.6, off:1.0, spd:8, pack:true, q:'Glows faintly. Comes in packs.', moves:[ { n:'Rabid Bite', el:'dark', cat:'p', pow:35, s:20, t:'foe', poison:0.4 }, { n:'Swarm', el:'dark', cat:'p', pow:18, hits:3, s:25, t:'foe' } ] },
+  sdrone:   { n:'Scrap Drone', el:'lightning', cat:'s', hp:0.8, off:1.05, spd:7, q:'Zaps and paralyzes.', moves:[ { n:'Taser', el:'lightning', cat:'s', pow:40, s:25, t:'foe', para:0.3 }, { n:'Spark Spray', el:'lightning', cat:'s', pow:25, s:30, t:'foes' } ] },
+  roach:    { n:'Wasteland Roach', el:'earth', cat:'p', d:[1.3, 1], hp:1.5, off:0.9, spd:3, q:'Survives anything. Very tanky.', moves:[ { n:'Crunch', el:'earth', cat:'p', pow:45, s:25, t:'foe' }, { n:'Endure', el:'earth', pow:0, s:25, t:'self', healPct:0.15 } ] },
+  imp:      { n:'Magma Imp', el:'fire', cat:'s', hp:0.7, off:1.15, spd:8, q:'Burns everything it touches.', moves:[ { n:'Magma Spit', el:'fire', cat:'s', pow:45, s:25, t:'foe', burn:0.4 }, { n:'Flare Up', el:'fire', cat:'s', pow:25, s:30, t:'foes', burn:0.2 } ] },
+  wisp:     { n:'Solar Wisp', el:'light', cat:'s', hp:0.6, off:1.0, spd:10, q:'Blinds you, then heals its friends.', moves:[ { n:'Glare', el:'light', cat:'s', pow:30, s:25, t:'foes', blind:0.35 }, { n:'Warm Glow', el:'light', pow:0, s:30, t:'allies', healPct:0.12 } ] },
+  qlizard:  { n:'Quick Lizard', el:'lightning', cat:'p', hp:0.7, off:1.05, spd:11, extra:{ first:true }, q:'Always strikes first.', moves:[ { n:'Dart Bite', el:'lightning', cat:'p', pow:40, s:20, t:'foe' }, { n:'Tail Whip', el:'lightning', cat:'p', pow:20, hits:2, s:25, t:'foe', para:0.15 } ] },
+  aslug:    { n:'Acid Slug', el:'life', cat:'s', hp:1.1, off:0.9, spd:2, item:'thorns', q:'Acidic slime: hitting it hurts.', moves:[ { n:'Acid Trail', el:'life', cat:'s', pow:35, s:25, t:'foes', poison:0.4 }, { n:'Corrode', el:'life', cat:'s', pow:45, s:25, t:'foe', expose:1 } ] },
+  siren:    { n:'Cloud Siren', el:'psychic', cat:'s', hp:0.7, off:1.05, spd:8, q:'Her song confuses.', moves:[ { n:'Lure Song', el:'psychic', cat:'s', pow:25, s:30, t:'foes', confuse:0.35 }, { n:'Shriek', el:'psychic', cat:'s', pow:50, s:25, t:'foe' } ] },
+  ltoad:    { n:'Lava Toad', el:'fire', cat:'p', hp:1.0, off:1.05, spd:5, q:'Heavy, hot and hard to move.', moves:[ { n:'Lava Belly Flop', el:'fire', cat:'p', pow:55, s:30, t:'foe', burn:0.3 }, { n:'Croak Quake', el:'fire', cat:'p', pow:30, s:30, t:'foes' } ] },
+  martian:  { n:'Little Green Man', el:'psychic', cat:'s', hp:0.6, off:1.05, spd:8, pack:true, q:'Arrives in groups, with ray guns.', moves:[ { n:'Ray Gun', el:'psychic', cat:'s', pow:40, s:20, t:'foe' }, { n:'Probe', el:'psychic', cat:'s', pow:25, s:25, t:'foe', confuse:0.3 } ] },
+  dworm:    { n:'Dust Worm', el:'earth', cat:'p', hp:1.3, off:1.05, spd:3, q:'Bursts out of the sand.', moves:[ { n:'Burrow Strike', el:'earth', cat:'p', pow:55, s:30, t:'foe', stun:0.15 }, { n:'Sandblast', el:'earth', cat:'p', pow:25, s:30, t:'foes', blind:0.25 } ] },
+  rover:    { n:'Rogue Rover', el:'lightning', cat:'s', d:[1.2, 1.1], hp:1.1, off:0.95, spd:4, q:'Armored. Drains your stamina.', moves:[ { n:'Laser Drill', el:'lightning', cat:'s', pow:45, s:25, t:'foe', staDrain:20 }, { n:'Solar Panel', el:'lightning', pow:0, s:25, t:'self', shieldPct:0.2 } ] },
+  ssprite:  { n:'Storm Sprite', el:'lightning', cat:'s', hp:0.6, off:1.1, spd:10, q:'Fast and shocking.', moves:[ { n:'Chain Zap', el:'lightning', cat:'s', pow:35, s:25, t:'foes', para:0.2 }, { n:'Bolt', el:'lightning', cat:'s', pow:50, s:25, t:'foe' } ] },
+  jelly:    { n:'Gas Jelly', el:'water', cat:'s', hp:1.1, off:0.95, spd:4, q:'Floats, stings, and drains.', moves:[ { n:'Sting', el:'water', cat:'s', pow:40, s:25, t:'foe', poison:0.3 }, { n:'Absorb', el:'water', cat:'s', pow:40, s:25, t:'foe', leech:0.5 } ] },
+  iogolem:  { n:'Io Golem', el:'fire', cat:'p', d:[1.25, 1], hp:1.4, off:1.0, spd:2, q:'A walking volcano from Jupiter\'s moon.', moves:[ { n:'Eruption Punch', el:'fire', cat:'p', pow:60, s:30, t:'foe', burn:0.3 }, { n:'Magma Shell', el:'fire', pow:0, s:30, t:'self', shieldPct:0.25 } ] },
+  clown:    { n:'Space Clown', el:'psychic', cat:'s', hp:0.8, off:1.0, spd:7, q:'Honk. Confuses everyone.', moves:[ { n:'Pie in the Face', el:'psychic', cat:'s', pow:40, s:25, t:'foe', blind:0.4 }, { n:'Honk Honk', el:'psychic', cat:'s', pow:20, s:30, t:'foes', confuse:0.3 } ] },
+  rgolem:   { n:'Ring Golem', el:'earth', cat:'p', d:[1.3, 1.1], hp:1.5, off:0.9, spd:2, q:'Made of ring ice and rock. Taunts.', moves:[ { n:'Ring Slam', el:'earth', cat:'p', pow:55, s:30, t:'foe' }, { n:'Stand Firm', el:'earth', pow:0, s:30, t:'self', selfTaunt:2, armor:1 } ] },
+  moth:     { n:'Titan Moth', el:'light', cat:'s', hp:0.8, off:1.05, spd:8, q:'Its dust blinds and heals moths.', moves:[ { n:'Dust Wings', el:'light', cat:'s', pow:30, s:25, t:'foes', blind:0.3 }, { n:'Moonbeam', el:'light', cat:'s', pow:50, s:25, t:'foe', leech:0.3 } ] },
+  iwraith:  { n:'Ice Wraith', el:'water', cat:'s', hp:0.8, off:1.1, spd:7, q:'Its touch freezes.', moves:[ { n:'Frost Touch', el:'water', cat:'s', pow:45, s:25, t:'foe', stun:0.2 }, { n:'Chill Wind', el:'water', cat:'s', pow:25, s:30, t:'foes', slow:1 } ] },
+  beetle:   { n:'Frost Beetle', el:'water', cat:'p', d:[1.35, 1], hp:1.3, off:0.95, spd:3, q:'An ice-armored tank.', moves:[ { n:'Horn Ram', el:'water', cat:'p', pow:55, s:30, t:'foe' }, { n:'Ice Shell', el:'water', pow:0, s:30, t:'self', shieldPct:0.25 } ] },
+  afox:     { n:'Aurora Fox', el:'light', cat:'s', hp:0.7, off:1.1, spd:10, crit:0.15, q:'Fast, lucky, crits often.', moves:[ { n:'Aurora Bite', el:'light', cat:'s', pow:50, s:25, t:'foe', critBonus:0.15 }, { n:'Shimmer', el:'light', pow:0, s:25, t:'self', veil:1 } ] },
+  squid:    { n:'Abyss Squid', el:'water', cat:'s', hp:1.0, off:1.05, spd:6, q:'Ink blinds, tentacles grab.', moves:[ { n:'Ink Cloud', el:'water', cat:'s', pow:25, s:30, t:'foes', blind:0.4 }, { n:'Tentacle Grab', el:'water', cat:'s', pow:45, s:25, t:'foe', stun:0.2 } ] },
+  veel:     { n:'Void Eel', el:'dark', cat:'s', hp:0.8, off:1.15, spd:9, q:'Drains life from the dark.', moves:[ { n:'Void Shock', el:'dark', cat:'s', pow:50, s:25, t:'foe', leech:0.3 }, { n:'Dark Current', el:'dark', cat:'s', pow:25, s:30, t:'foes', weaken:1 } ] },
+  comet:    { n:'Comet Sprite', el:'psychic', cat:'s', hp:0.6, off:1.15, spd:11, extra:{ first:true }, q:'Streaks in first, hits hard.', moves:[ { n:'Comet Tail', el:'psychic', cat:'s', pow:55, s:30, t:'foe' }, { n:'Stardust', el:'psychic', cat:'s', pow:20, s:25, t:'foes', confuse:0.25 } ] }
+});
+const R4_NATIVE = [['mrat', 'sdrone', 'roach'], ['imp', 'wisp', 'qlizard'], ['aslug', 'siren', 'ltoad'], ['martian', 'dworm', 'rover'],
+                   ['ssprite', 'jelly', 'iogolem'], ['clown', 'rgolem', 'moth'], ['iwraith', 'beetle', 'afox'], ['squid', 'veel', 'comet']];
+
+// ---- Bosses (all humanoid). Stand-in art until the real sprites arrive: a big version of their class sprite. ----
+function boss4(w, L, info, o) { const u = bossUnit(w, L, { name:info.name, el:info.els[0], spr:info.spr, ...o }); u.el2 = info.els[1]; u.el3 = info.els[2]; return u; }
+const BOSSES4 = [
+  // 1. Ruined Earth: Max Wreckage and two raiders. Bleeding poison, ramming hits, and a nitro phase.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[0], { cls:'fighter', dmul:[1.1, 1], k:{ hp:2.8, off:1.08, def:1.1, spd:6 }, basic:{ n:'Tire Iron', cat:'p' },
+      script:['Chain Whip', 'Rust Bleed', 'Ram Raid', 'Scrap Armor'],
+      phase:{ at:0.5, title:'FULL THROTTLE', shield:0.15, offUp:1, script:['Nitro Crash', 'Ram Raid', 'Chain Whip', 'Rust Bleed'], say:'Max Wreckage slams the nitro. The buggy screams.',
+              addMoves:[ { n:'Nitro Crash', el:'fire', cat:'p', pow:55, s:45, t:'foes', burn:0.3 } ] },
+      moves:[ { n:'Chain Whip', el:'earth', cat:'p', pow:30, s:30, t:'foes' },
+              { n:'Rust Bleed', el:'dark', cat:'p', pow:45, s:30, t:'foe', poison:0.6 },
+              { n:'Ram Raid', el:'earth', cat:'p', pow:70, s:35, t:'foe', stun:0.2 },
+              { n:'Scrap Armor', el:'earth', pow:0, s:30, t:'self', shieldPct:0.2 } ] });
+    const team = [h, named(side(w, L, 'dark', 'rogue', 0.4), 'Wasteland Raider'), named(side(w, L, 'fire', 'ranger', 0.4), 'Wasteland Raider')]; h.teamRef = team; return team; },
+  // 2. Mercury: Quicksilver. Always first; acts twice once hurt.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[1], { cls:'rogue', dmul:[0.95, 1], k:{ hp:2.4, off:1.08, def:0.95, spd:12, crit:0.15 }, basic:{ n:'Flash Jab', cat:'p' }, extra:{ first:true },
+      script:['Blur Combo', 'Mercury Rising', 'Afterimage', 'Blur Combo'],
+      phase:{ at:0.5, title:'TOP SPEED', shield:0.1, extra:{ twice:true }, script:['Mercury Rising', 'Blur Combo', 'Afterimage', 'Blur Combo'], say:'Quicksilver vanishes. Then there are two of them. No, just one, moving very fast.' },
+      moves:[ { n:'Blur Combo', el:'lightning', cat:'p', pow:18, hits:4, s:30, t:'foe' },
+              { n:'Mercury Rising', el:'lightning', cat:'p', pow:60, s:35, t:'foe', para:0.3 },
+              { n:'Afterimage', el:'lightning', pow:0, s:25, t:'self', veil:1 } ] });
+    return [h]; },
+  // 3. Venus: Venus the Vain and two admirers. Poison+ perfume, charm (confusion), vanity buffs.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[2], { cls:'bard', dmul:[1, 1.1], k:{ hp:2.7, off:1.05, def:1, spd:7, sta:150 }, basic:{ n:'Fan Slap', cat:'s' },
+      script:['Toxic Perfume', 'Charm', 'Vanity', 'Toxic Perfume'],
+      phase:{ at:0.5, title:'NOT MY GOOD SIDE', shield:0.15, offUp:1, script:['Acid Glare', 'Toxic Perfume', 'Charm', 'Acid Glare'], say:'Venus sees her reflection with a scratch on it. Her eyes go acid green.',
+              addMoves:[ { n:'Acid Glare', el:'dark', cat:'s', pow:60, s:35, t:'foe', blind:0.4 } ] },
+      moves:[ { n:'Toxic Perfume', el:'dark', cat:'s', pow:30, s:35, t:'foes', poison:0.5, poisonP:true },
+              { n:'Charm', el:'life', pow:0, s:30, t:'foes', confuse:0.45 },
+              { n:'Vanity', el:'life', pow:0, s:30, t:'allies', offUp:1 } ] });
+    const ad = () => { const c = named(side(w, L, 'life', 'cleric', 0.4), 'Admirer'); c.favor = 'bard'; return c; };
+    const team = [h, ad(), ad()]; h.teamRef = team; return team; },
+  // 4. Mars: Commander Ares and two legionnaires. War cries, shield walls and an orbital strike.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[3], { cls:'fighter', dmul:[1.15, 1], k:{ hp:2.3, off:1.08, def:1.1, spd:6 }, basic:{ n:'Spear Butt', cat:'p' },
+      script:['War Cry', 'Ray Spear', 'Orbital Strike', 'Phalanx'],
+      phase:{ at:0.5, title:'TOTAL WAR', shield:0.15, offUp:1, script:['Ray Spear', 'Orbital Strike', 'War Cry', 'Ray Spear'], say:'Commander Ares raises his spear. Every Martian on the planet roars.' },
+      moves:[ { n:'Ray Spear', el:'fire', cat:'p', pow:65, s:30, t:'foe' },
+              { n:'War Cry', el:'fire', pow:0, s:30, t:'allies', offUp:1 },
+              { n:'Phalanx', el:'earth', pow:0, s:35, t:'allies', shieldPct:0.1 },
+              { n:'Orbital Strike', el:'fire', pow:0, s:45, t:'foe', bomb:{ pow:75, burn:0.4 } } ] });
+    const lg = () => named(side(w, L, 'fire', 'bulwark', 0.36), 'Martian Legionnaire');
+    const team = [h, lg(), lg()]; h.teamRef = team; return team; },
+  // 5. Jupiter: Storm King Jove. Huge hits, paralysis+, and a storm phase.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[4], { cls:'sorcerer', dmul:[1.05, 1.15], k:{ hp:3.3, off:1.08, def:1.1, spd:5, sta:170 }, basic:{ n:'Static Palm', cat:'s' },
+      script:['Storm Front', 'Thunderbolt', 'Great Red Storm', 'Divine Right'],
+      phase:{ at:0.5, title:'KING OF THE GODS', shield:0.2, offUp:1, script:['Gigabolt', 'Thunderbolt', 'Great Red Storm', 'Storm Front'], say:'Storm King Jove grows twice as large. The whole planet thunders.',
+              addMoves:[ { n:'Gigabolt', el:'lightning', cat:'s', pow:55, s:45, t:'foes', stun:0.15 } ] },
+      moves:[ { n:'Thunderbolt', el:'lightning', cat:'s', pow:70, s:35, t:'foe', para:0.4, paraP:true },
+              { n:'Storm Front', el:'lightning', cat:'s', pow:40, s:35, t:'foes', para:0.2 },
+              { n:'Divine Right', el:'light', pow:0, s:30, t:'self', shieldPct:0.2, offUp:1 },
+              { n:'Great Red Storm', el:'lightning', pow:0, s:50, t:'foe', bomb:{ pow:85, stun:0.25 } } ] });
+    return [h]; },
+  // 6. Saturn: The Ringmaster, a clown and a strongman. Ring shields, crowd-pleasing encores, a revive finale.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[5], { cls:'bard', dmul:[1, 1.1], k:{ hp:3.2, off:1.12, def:1.05, spd:8, sta:150 }, basic:{ n:'Cane Tap', cat:'p' },
+      script:['Showstopper', 'Whip Crack', 'Ring of Fire', 'Encore!'],
+      phase:{ at:0.5, title:'GRAND FINALE', shield:0.15, offUp:1, revive:0.4, script:['Ring of Fire', 'Whip Crack', 'Encore!', 'Ring of Fire'], say:'The Ringmaster: "And now... the GRAND FINALE!" Her fallen performers take a bow and get back up.' },
+      moves:[ { n:'Whip Crack', el:'psychic', cat:'p', pow:45, s:30, t:'foe', confuse:0.3 },
+              { n:'Ring of Fire', el:'light', cat:'s', pow:35, s:35, t:'foes', burn:0.3 },
+              { n:'Showstopper', el:'light', pow:0, s:35, t:'allies', shieldPct:0.15 },
+              { n:'Encore!', el:'psychic', pow:0, s:30, t:'allies', offUp:1, haste:1 } ] });
+    const team = [h, pet(w, L, 'psychic', 'rogue', 0.4, 'Space Clown', 'cr_clown', [ { n:'Pie in the Face', el:'psychic', cat:'s', pow:40, s:25, t:'foe', blind:0.4 }, { n:'Honk Honk', el:'psychic', cat:'s', pow:20, s:30, t:'foes', confuse:0.3 } ]),
+      named(side(w, L, 'earth', 'fighter', 0.42), 'Strongman')]; h.teamRef = team; return team; },
+  // 7. Uranus: Sir Tilt. Counters, freezes, sideways charges and an ice squire.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[6], { cls:'bulwark', dmul:[1.2, 1.05], k:{ hp:3.8, off:1.12, def:1.2, spd:4 }, basic:{ n:'Shield Bash', cat:'p' },
+      script:['Ice Shield', 'Frozen Lance', 'Sideways Charge', 'Glacial Wall'],
+      phase:{ at:0.5, title:'FULL TILT', shield:0.15, offUp:1, script:['Frozen Lance', 'Sideways Charge', 'Ice Shield', 'Frozen Lance'], say:'Sir Tilt spins completely upside down. Somehow this is worse.' },
+      moves:[ { n:'Frozen Lance', el:'water', cat:'p', pow:65, s:30, t:'foe', stun:0.25 },
+              { n:'Ice Shield', el:'water', pow:0, s:30, t:'self', counter:{ pow:55 } },
+              { n:'Sideways Charge', el:'water', cat:'p', pow:40, s:35, t:'foes', slow:1 },
+              { n:'Glacial Wall', el:'water', pow:0, s:30, t:'self', shieldPct:0.25, selfTaunt:2 } ] });
+    const team = [h, named(side(w, L, 'water', 'cleric', 0.4), 'Ice Squire')]; h.teamRef = team; return team; },
+  // 8. Neptune, part 1: The Dwarf Planet. A huge axe, a thrown moon, and a grudge.
+  (w, L) => { const h = boss4(w, L, REALM4_BOSSES[7], { cls:'fighter', dmul:[1.2, 1.1], k:{ hp:4.0, off:1.2, def:1.15, spd:4, crit:0.12 }, basic:{ n:'Beard Headbutt', cat:'p' },
+      script:['Cleave', 'Axe of Demotion', 'Moon Toss', 'Grudge'],
+      phase:{ at:0.4, title:'STILL A PLANET', shield:0.2, offUp:1, script:['Planetary Smash', 'Axe of Demotion', 'Moon Toss', 'Axe of Demotion'], say:'The Dwarf Planet roars: "I HAVE A MOON! PLANETS HAVE MOONS!"',
+              addMoves:[ { n:'Planetary Smash', el:'earth', cat:'p', pow:60, s:45, t:'foes', stun:0.15 } ] },
+      moves:[ { n:'Axe of Demotion', el:'earth', cat:'p', pow:85, s:35, t:'foe', execute:true },
+              { n:'Cleave', el:'earth', cat:'p', pow:45, s:30, t:'foes' },
+              { n:'Moon Toss', el:'water', pow:0, s:45, t:'foe', bomb:{ pow:70, stun:0.3 } },
+              { n:'Grudge', el:'earth', pow:0, s:30, t:'self', offUp:1, healPct:0.1 } ] });
+    return [h]; }
+];
+// Neptune, part 2: Mother Earth, the true final boss (three elements, three-phase-feeling fight).
+function motherEarth(w, L) {
+  const h = boss4(w, L, R4_FINALE, { cls:'sorcerer', dmul:[1.1, 1.15], k:{ hp:4.6, off:1.12, def:1.15, spd:5, sta:180 }, basic:{ n:'Vine Lash', cat:'s' },
+    script:['Overgrowth', 'Tidal Wrath', 'Earthquake', "Gaia's Embrace", 'Volcanic Rage'],
+    phase:{ at:0.5, title:'THE PLANET REMEMBERS', shield:0.2, offUp:1, script:['Extinction Event', 'Tidal Wrath', 'Volcanic Rage', 'Overgrowth', "Gaia's Embrace"], say:'Mother Earth: "I have ended worlds before." Continents rise behind her.',
+            addMoves:[ { n:'Extinction Event', el:'earth', cat:'s', pow:65, s:50, t:'foes' } ] },
+    moves:[ { n:'Earthquake', el:'earth', cat:'s', pow:45, s:35, t:'foes', stun:0.1 },
+            { n:'Tidal Wrath', el:'water', cat:'s', pow:65, s:35, t:'foe' },
+            { n:'Overgrowth', el:'life', cat:'s', pow:35, s:35, t:'foes', poison:0.5 },
+            { n:"Gaia's Embrace", el:'life', pow:0, s:35, t:'self', healPct:0.1, regen:[0.08, 3] },
+            { n:'Volcanic Rage', el:'earth', pow:0, s:50, t:'foe', bomb:{ pow:85, burn:0.5, burnP:true } } ] });
+  h.art = true;
+  return [h];
+}
+const R4_FINALE_LV = 3;   // Mother Earth sits a few levels above the Dwarf Planet
+
+// ---- Sprites: 16x16 natives and stand-in boss art ----
+if (typeof SPR !== 'undefined') Object.assign(SPR, {
+  cr_mrat:["................","................","................","...kk......k....",".keeek....kek...","kekeeekkkkeek...","keeeeeeeeeeek...","kewewNeeeeeek...",".kkeeeeeeeeeek..","..keeeeeeeeeeek.","..keekeeeeekeekk","..kek.kkkk.kek..","...k........k...","................","................","................"],
+  cr_sdrone:["................","..k..........k..","..kk..kkkk..kk..","...kkkGGGGkkk...","....kGgggGGk....","...kGgykkygGk...","...kGgggggGGk...","....kGGGGGGk....","....kk.kk.kk....","...kyk.ky.kyk...","...k.........k..","................","................","................","................","................"],
+  cr_roach:["................","................","....k......k....",".....k....k.....","....kNNNNNNk....","...kNnnnnnnNk...","..kNnNnnnnNnNk..","..kNnnnNNnnnNk..","..kNnNnnnnNnNk..","..kNnnnnnnnnNk..","...kNNNNNNNNk...","..k.k.k..k.k.k..","..k..k....k..k..","................","................","................"],
+  cr_imp:["................","...kk....kk.....","..kok....kok....","..kooookooook...","..koywoowyook...","..kooooooooook..","...koRRRRook....","....koooook.....","..kkoooooookk...","..kokoooookok...","....koooook.....","....kok.kok.....","....kk...kk.....","................","................","................"],
+  cr_wisp:["................","......kkkk......",".....kLLLLk.....","....kLuwwuLk....","...kLuwwwwuLk...","...kLuwkkwuLk...","...kLuwwwwuLk...","....kLuuuuLk....",".....kLLLLk.....","......kLLk......",".......kk.......","................","................","................","................","................"],
+  cr_qlizard:["................","................","................","..kkk...........",".kyyyk..........","kyykyyk.........","kyyyyyykkkk.....",".kyyyyyyyyyk....","..kyYyyYyyyyk...","..kyyyyyyyyyykk.","...kYk..kYk..kyk","...kk....kk...k.","................","................","................","................"],
+  cr_aslug:["................","................","................","..........k.k...","..........kek...","........kkeek...",".......keeeek...",".....kkeweeek...","...kkeeeeeeek...","..keeEeeEeeek...",".keeeeeeeeeek...","kmmmmmmmmmmmk...","kkkkkkkkkkkkk...","................","................","................"],
+  cr_siren:["................","......kkkk......",".....kppppk.....","....kpsssspk....","....kpskskpk....","....kpsssspk....","...kpppssppp.k..","..kcck pppkcck..",".kcccckpppkcccck","..kcckpppppkcck.","....kpppppppk...",".....kpppppk....","......kpppk.....",".......kpk......","........k.......","................"],
+  cr_ltoad:["................","................","....kk....kk....","...kwkk..kkwk...","...kkvvkkvvkk...","..kvvvvvvvvvvk..",".kvvvoovvvoovvk.",".kvvvvvvvvvvvvk.",".kvvkkkkkkkkvvk.","..kvvvvvvvvvvk..","..kvk.kkkk.kvk..","..kk........kk..","................","................","................","................"],
+  cr_martian:["................","....k......k....",".....k....k.....","....kkkkkkkk....","...keeeeeeeek...","..keekkeekkeek..","..keekwkeekwek..","...keeeeeeeek...","....keekkeek....",".....keeeek.....","....kGGGGGGk....","...kGkGGGGkGk...","....kGGkkGGk....","....kek..kek....","................","................"],
+  cr_dworm:["................","......kkkk......",".....kjjjjk.....","....kjkjjkjk....","....kjjRRjjk....","....kjRwwRjk....",".....kjRRjk.....",".....kjjjjk.....","....kjjjjjjk....","...kjjNjjNjjk...","..kNNNNNNNNNNk..",".kNnNnNnNnNnNnk.","kkkkkkkkkkkkkkkk","................","................","................"],
+  cr_rover:["................",".......kk.......","......kbbk......",".....kkkkkk.....","..kkkGGGGGGkkk..","..kGGGGGGGGGGk..","..kGyGGGGGGyGk..","..kkkkkkkkkkkk..","..kgk.kgk.kgkk..",".kgggkgggkgggk..",".kgkgkgkgkgkgk..","..kkk.kkk.kkk...","................","................","................","................"],
+  cr_ssprite:["................",".......k........","......kyk.......",".....kyLyk......","....kyLwLyk.....","...kyLwkwLyk....","..kyyLwwwLyyk...","...kyyLLLyyk....","....kyyyyyk.....",".....kyyyk......","......kyk.......","......k.........",".....k..........","................","................","................"],
+  cr_jelly:["................","....kkkkkkk.....","...kbbbbbbbk....","..kbBbbbbbBbk...","..kbbwbbbwbbk...","..kbbbbbbbbbk...","...kkbkbkbkk....","....kb.b.bk.....","....k.b.b.k.....",".....kb.bk......",".....k.b.k......","................","................","................","................","................"],
+  cr_iogolem:["................","....kkkkkkk.....","...kNoNNoNNk....","...kNNyNNyNk....","...kNNNNNNNk....","..kkNoNNNNoNkk..",".kNNkNNNNNNkNNk.",".kNokNNoNNNkoNk.",".kNNkNNNNNNkNNk.","..kk.kNNNNk.kk..","....kNNkkNNk....","....kNNk.kNNk...","....kkkk.kkkk...","................","................","................"],
+  cr_clown:["......kkkk......",".....kpyRpk.....","....kpyRyRpk....","...kkkkkkkkkk...","...kwwwwwwwwk...","...kwkwwwwkwk...","...kwwwRRwwwk...","...kwRwwwwRwk...","....kwRRRRwk....","...kkpkkkkpkk...","..kpypypypypyk..","..kypypypypypk..","...kkpkkkkpkk...","....kRk..kRk....","....kkk..kkk....","................"],
+  cr_rgolem:["................","....kkkkkkkk....","...kGGGIIGGGk...","...kGkGGGGkGk...","...kGGGGGGGGk...","kkkkGGIIIIGGkkkk","kZZkGGGGGGGGkZZk","kZZkGIGGGGIGkZZk","kkkkGGGGGGGGkkkk","....kGGGGGGk....","....kGGkkGGk....","...kGGGk.kGGGk..","...kkkkk.kkkkk..","................","................","................"],
+  cr_moth:["................",".k............k.","..k..........k..","...kkk....kkk...","..kLLLk..kLLLk..",".kLuLLLkkLLLuLk.",".kLLLLkxxkLLLLk.",".kLuLLkxxkLLuLk.","..kLLLkxxkLLLk..","...kkkkxxkkkk...","......kxxk......","......kxxk......",".......kk.......","................","................","................"],
+  cr_iwraith:["................",".....kkkkk......","....kZZZZZk.....","...kZZZZZZZk....","...kZkkZkkZk....","...kZbkZbkZk....","...kZZZZZZZk....","..kZZZkkkZZZk...","..kZZZZZZZZZk...","...kZZZZZZZk....","...kZkZkZkZk....","....k.k.k.k.....","................","................","................","................"],
+  cr_beetle:["................","......k.........",".....kbk........","....kbBbk.......","...kkkkkkkkk....","..kbbBbbbBbbk...",".kbZbbbBbbbZbk..",".kbbbbbBbbbbbk..",".kbZbbbBbbbZbk..","..kbbbbBbbbbk...","...kkkkkkkkk....","..k.k.k..k.k.k..","................","................","................","................"],
+  cr_afox:["................","..k.......k.....","..kk.....kk.....","..kxk...kxk.....","..kxxkkkxxk.....",".kxxxxxxxxxk....",".kxkxxxxkxxk....",".kxxxxkxxxxk...k","..kxxwwwxxk...kx","...kxxxxxxkk.kxk","..kxxxxxxxxxkxk.","..kxxxxxxxxxxk..","...kxk.kxxkxk...","...kk..kk.kk....","................","................"],
+  cr_squid:["......kkkk......",".....kBBBBk.....","....kBBBBBBk....","...kBBBBBBBBk...","...kBBBBBBBBk...","...kBwkBBwkBk...","...kBBBBBBBBk...","....kBBBBBBk....","...kBkBkBkBkBk..","..kBk.kBk.kBk...","..kB..kB..kB....","..k..kB....kB...","....kB......k...","....k...........","................","................"],
+  cr_veel:["................","................","..........kkk...",".........kdddk..","........kdwdDk..",".......kdddddk..","......kdDdddk...",".....kdddDdk....","....kddDddk.....","...kdddddk......","..kdDddk........",".kddkkk.........",".kkk............","................","................","................"],
+  cr_comet:["................","................","..........kkk...",".........kpwpk..","........kpwwwpk.","........kpwwwpk.",".......kkpppppk.","......kp.kpppk..","....kpp...kkk...","..kpp...........",".kp.............","................","................","................","................","................"]
+});
+// Stand-in boss art until real sprites arrive: the boss's class sprite in its element colors.
+const R4_STANDIN = {};
+[...REALM4_BOSSES, R4_FINALE].forEach(b => { R4_STANDIN[b.spr] = b.stand; });
 /* ================= progress: stars, milestones, saved run ================= */
 // Stars are earned per element+class combo. Each combo can hold STAR_STEP points per unlocked star, up to 10 in any one stat.
 // Points come from one-time milestones (own points) and from first-time boss kills (a shared pool you spend on any combo).
-const REALMS = 3;                       // realms that exist so far; each first-time realm clear unlocks one more star
+const REALMS = 4;                       // realms that exist so far; each first-time realm clear unlocks one more star
 const MILESTONES = [                    // boss kills that credit every combo in your party, once each
   { w:2, pts:2, label:'World 3 boss' }, { w:4, pts:3, label:'World 5 boss' }, { w:7, pts:5, label:'Clear the realm' }];
 const comboKey = (el, cls) => el + '_' + cls;
@@ -6582,6 +6812,7 @@ const _sc = {};
 function spriteURL(layers, scale = 8) {
   if (typeof layers === 'string') layers = [[layers]];
   if (layers.length === 1 && SPR_IMG[layers[0][0]]) return SPR_IMG[layers[0][0]];
+  if (layers.length === 1 && typeof R4_STANDIN !== 'undefined' && R4_STANDIN[layers[0][0]] && !SPR[layers[0][0]]) { const [c, e] = R4_STANDIN[layers[0][0]]; return spriteURL([[c, roleSwap(c, e)]], scale); }   // Realm 4 boss stand-in art
   const key = JSON.stringify(layers) + scale;
   if (_sc[key]) return _sc[key];
   const h = SPR[layers[0][0]].length, w = SPR[layers[0][0]][0].length;
@@ -7204,6 +7435,43 @@ function worldArt(w) {
     for (let i = 0; i < 16; i++) { const x = ri(Wd), y = ri(Ht), c = ['#e0457a', '#b388ff', '#ff8c42'][ri(3)];
       rect(x - 2, y, 5, 2, c); px(x - 1, y, '#ffffff'); px(x + 1, y + 1, '#ffffff'); rect(x, y + 2, 1, 2, '#f0e8d0'); }   // mushrooms
     for (let i = 0; i < 60; i++) px(ri(Wd), ri(Ht), ['#fff3a0', '#c8f0ff', '#ffb0e0'][ri(3)]);   // sparkles
+  } else if (w >= 24) {                          // Realm 4: Lights Out (one look per planet)
+    const k = w - 24, stars = n => { for (let i = 0; i < n; i++) px(ri(Wd), ri(Ht), R() < 0.7 ? '#ffffff' : '#a8c8ff'); };
+    if (k === 0) {                               // Ruined Earth: dark sky, broken towers, ash
+      fill('#3a3028'); speckle(['#2e2620', '#463a30', '#5a4a3a'], 800); rect(0, 0, Wd, 22, '#1a1418'); stars(15);
+      for (let i = 0; i < 6; i++) { const x = 4 + i * 13 + ri(4), h = 8 + ri(12); rect(x, 22 - h, 6, h, '#26222a'); for (let y = 22 - h + 2; y < 22; y += 3) if (R() < 0.4) px(x + 1 + ri(4), y, '#f9a03a'); }
+      for (let i = 0; i < 12; i++) { const x = ri(Wd), y = 26 + ri(Ht - 30); rect(x, y, 4 + ri(5), 2, ['#5a4a40', '#6a5a4a', '#3a3a40'][ri(3)]); }
+      for (let i = 0; i < 4; i++) { const x = 6 + ri(Wd - 14), y = 30 + ri(Ht - 40); rect(x, y, 8, 3, '#7a2a1a'); rect(x + 1, y - 2, 5, 2, '#5a2a1a'); px(x + 1, y + 3, '#1a1a1a'); px(x + 6, y + 3, '#1a1a1a'); }
+    } else if (k === 1) {                        // Mercury: cratered, blazing sun on the horizon
+      fill('#8a6a50'); speckle(['#7a5a40', '#9a7a5a', '#6a4a30'], 900); rect(0, 0, Wd, 20, '#1a0e08'); blob(40, 4, 14, '#ffb040'); blob(40, 4, 10, '#fff0a0');
+      for (let i = 0; i < 14; i++) { const x = ri(Wd), y = 24 + ri(Ht - 28), r = 2 + ri(4); blob(x, y, r, '#5a3a24'); blob(x + 1, y + 1, Math.max(1, r - 1), '#7a5a40'); }
+    } else if (k === 2) {                        // Venus: acid-green clouds, yellow haze
+      fill('#a8a040'); speckle(['#98903a', '#b8b050', '#c8c060'], 900);
+      for (let i = 0; i < 18; i++) blob(ri(Wd), ri(Ht), 3 + ri(4), ['rgba(150,220,60,0.5)', 'rgba(220,230,90,0.5)', 'rgba(120,180,40,0.45)'][ri(3)]);
+      for (let i = 0; i < 70; i++) { const x = ri(Wd), y = ri(Ht); px(x, y, '#e0ff70'); px(x, y + 1, 'rgba(224,255,112,0.5)'); }   // acid rain
+    } else if (k === 3) {                        // Mars: red dust, rocks, a little base
+      fill('#b8502a'); speckle(['#a84422', '#c8603a', '#983a1a'], 900); rect(0, 0, Wd, 18, '#d8905a');
+      for (let i = 0; i < 14; i++) { const x = ri(Wd), y = 22 + ri(Ht - 26); rect(x, y, 2 + ri(4), 2 + ri(3), '#7a2a12'); }
+      rect(50, 30, 16, 8, '#c8c8d0'); blob(58, 30, 5, '#e0e0e8'); rect(56, 36, 4, 2, '#3a3a40'); for (let i = 0; i < 3; i++) px(52 + i * 5, 29, '#59e0ff');
+      for (let i = 0; i < 40; i++) px(ri(Wd), ri(Ht), 'rgba(255,200,150,0.4)');   // dust
+    } else if (k === 4) {                        // Jupiter: banded clouds and the Great Red Spot
+      for (let y = 0; y < Ht; y++) rect(0, y, Wd, 1, ['#c8a070', '#e0c090', '#b07850', '#f0dcb0', '#a06840'][Math.floor(y / 6 + Math.sin(y / 3) * 0.6 + 5) % 5]);
+      blob(56, 50, 9, '#b8401a'); blob(56, 50, 6, '#d86030'); blob(55, 49, 3, '#f08050');
+      for (let i = 0; i < 25; i++) { const x = ri(Wd), y = ri(Ht); rect(x, y, 3 + ri(5), 1, 'rgba(255,255,255,0.25)'); }
+    } else if (k === 5) {                        // Saturn: rings across a starry sky, circus lights
+      fill('#14101e'); stars(60); blob(40, 44, 16, '#d8b878'); blob(40, 44, 13, '#e8c890');
+      for (let x = 0; x < Wd; x++) { const y = 44 + Math.round((x - 40) * 0.25); px(x, y, '#f0e0b0'); px(x, y + 1, '#c8a870'); px(x, y - 1, 'rgba(240,224,176,0.6)'); }
+      for (let i = 0; i < 20; i++) px(ri(Wd), 70 + ri(24), ['#ff4a7a', '#ffd23a', '#59e0ff', '#a0ff70'][ri(4)]);
+    } else if (k === 6) {                        // Uranus: pale teal ice world, tilted bands
+      fill('#7ad0d8'); speckle(['#6ac0c8', '#8ae0e8', '#5ab0b8'], 800);
+      for (let i = 0; i < 6; i++) for (let y = 0; y < Ht; y++) px(i * 14 + Math.round(y * 0.4) % Wd, y, 'rgba(255,255,255,0.35)');
+      for (let i = 0; i < 10; i++) { const x = ri(Wd - 4), y = ri(Ht - 4); rect(x, y, 3, 3, '#c8f4ff'); px(x + 1, y + 1, '#ffffff'); }
+    } else {                                     // Neptune: deep blue storms and ice
+      fill('#1a3a90'); speckle(['#14307a', '#2448a8', '#0e2468'], 900);
+      for (let i = 0; i < 8; i++) { const x = ri(Wd), y = ri(Ht); rect(x, y, 10 + ri(14), 1, 'rgba(160,200,255,0.4)'); }
+      blob(24, 30, 7, '#0a1850'); blob(24, 30, 4, '#122a70');   // great dark spot
+      for (let i = 0; i < 12; i++) { const x = ri(Wd - 5), y = 50 + ri(Ht - 54); rect(x, y, 4, 3, '#c8e0ff'); px(x + 1, y, '#ffffff'); }
+    }
   } else if (w >= 16) {                          // Realm 3: World Domination (one look per place)
     const k = w - 16;
     if (k === 0) {                               // Japan: blossoms, a torii gate, Fuji on the horizon
@@ -7612,7 +7880,7 @@ function showMap() {
   const nextLv = lvlOf(G.w, reach[0] ? reach[0].f : 0);
   app.innerHTML = `
     <h1>${worldTitle()}</h1>
-    ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('ultra')} ultra · ${icon('boss')} boss</div>
+    ${planetRule() ? `<div class="sub"><b style="color:var(--gold)">&#127756; Planet rule: ${planetRule().n}.</b> ${planetRule().d}${G.w === 7 ? ' <b>Two bosses wait at the end.</b>' : ''}</div>` : ''}${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('ultra')} ultra · ${icon('boss')} boss</div>
     ${partyMini()}
     <div class="row"><button id="bagbtn">${icon('item')} BAG (${G.bag.length})</button><button id="savebtn">SAVE &amp; QUIT</button><button id="forfeitbtn" class="danger">FORFEIT</button></div>
     <div class="row maptog"><button id="mauto" class="tog ${G.auto ? 'on' : ''}">AUTO: ${G.auto ? 'ON' : 'OFF'}</button><button id="mquick" class="tog ${G.quick ? 'on' : ''}">QUICK: ${G.quick ? 'ON' : 'OFF'}</button></div>
@@ -8137,7 +8405,7 @@ function winFight() {
   noteDowned();
   const t = G.node.type, fl = Math.max(...B.foes.map(e => e.lvl));
   B.over = 'win';
-  if (t === 'boss') G.award = eliteNode(G.node) ? null : awardBoss(G.w, party);
+  if (t === 'boss') G.award = eliteNode(G.node) || r4Dwarf(G.node) ? null : awardBoss(G.w, party);
   G.learnQ = [];
   B.gains = party.map(p => {
     const g = fightRewards(p, fl, t, B.downed.has(p));
@@ -8149,10 +8417,12 @@ function winFight() {
   renderBattle();
 }
 const eliteNode = n => !!n && n.gi != null && n.gi < MOON_ELITE.length && isMoon(G.w);
+const r4Dwarf = n => REALM === 3 && G.w === 7 && !!n && n.gi === 0;   // Neptune: Mother Earth comes next
 function afterFight() {
   const t = G.node.type;
   processLearns(() => {
     if (t === 'elite') return showUpgrade('ELITE TREASURE!', showMap);
+    if (t === 'boss' && r4Dwarf(G.node)) return showUpgrade('THE DWARF PLANET FALLS!', () => { const n = { ...G.node, gi:1 }; G.node = n; startFight(n); });
     if (t === 'boss' && eliteNode(G.node)) return showUpgrade(`${bossInfoOf(G.w, G.node).name.toUpperCase()} DOWN!`, showMap);   // the Moon: straight on to the next one
     if (t === 'boss') return showUpgrade("HERO'S LOOT!", showWorldClear);
     showMap();
@@ -8162,7 +8432,7 @@ function afterFight() {
 function awardHTML() {
   const a = G.award; if (!a) return '';
   const lines = [];
-  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter. <b>Realm 3: World Domination is now open!</b>' : ''}${a.realm === 3 ? ' <b>The slimes rule the Earth, the Moon and the Sun.</b>' : ''}`);
+  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter. <b>Realm 3: World Domination is now open!</b>' : ''}${a.realm === 3 ? ' <b>The slimes rule the Earth, the Moon and the Sun. Realm 4: Lights Out is now open!</b>' : ''}${a.realm === 4 ? ' <b>The slimes rule the whole solar system.</b>' : ''}`);
   if (a.shared) lines.push(`+${a.shared} shared star point (first time beating this boss)`);
   a.combos.forEach(c => lines.push(`${c.name}: +${c.pts} star points (${c.label})`));
   return lines.length ? `<div class="award">${lines.map(l => `<div>${l}</div>`).join('')}<small>Spend star points on the starter screen at the start of a run.</small></div>` : '';
@@ -8170,7 +8440,7 @@ function awardHTML() {
 function showWorldClear() {
   if (G.w >= WORLDS.length - 1) {
     app.innerHTML = `<h1>REALM ${REALM + 1} CLEARED!</h1>${img(unitURL(party[0]), 'big bob')}
-      <div class="sub" style="text-align:center">${BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM === 2 ? '' : REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
+      <div class="sub" style="text-align:center">${REALM === 3 ? R4_FINALE.outro : BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM >= 2 ? '' : REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
       <div class="row" style="margin-top:12px"><button class="primary" id="go">NEW RUN</button></div>`;
     return document.getElementById('go').onclick = renderPick;
   }
@@ -8308,7 +8578,7 @@ function renderBattle() {
   const hold = B.hold = B.hold || {};
   const mh = k => hold[k] ? ` style="min-height:${hold[k]}px"` : '';
   app.innerHTML = `
-    <div class="bhead"${mh('bhead')}><div class="btitle">W${G.w + 1} ${WORLDS[G.w].name} · ${title} F${node.f + 1}</div>${battleBar()}</div>
+    <div class="bhead"${mh('bhead')}><div class="btitle">W${G.w + 1} ${WORLDS[G.w].name} · ${title} F${node.f + 1}${planetRule() ? ` · ${planetRule().n.toUpperCase()}` : ''}</div>${battleBar()}</div>
     ${orderBar().replace('class="order"', `class="order"${mh('order')}`)}
     <div class="row foes">${B.foes.map(unitCard).join('')}</div>
     <div class="row mine">${party.map(unitCard).join('')}</div>

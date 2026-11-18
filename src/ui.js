@@ -322,7 +322,7 @@ function showMap() {
   const nextLv = lvlOf(G.w, reach[0] ? reach[0].f : 0);
   app.innerHTML = `
     <h1>${worldTitle()}</h1>
-    ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('ultra')} ultra · ${icon('boss')} boss</div>
+    ${planetRule() ? `<div class="sub"><b style="color:var(--gold)">&#127756; Planet rule: ${planetRule().n}.</b> ${planetRule().d}${G.w === 7 ? ' <b>Two bosses wait at the end.</b>' : ''}</div>` : ''}${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('ultra')} ultra · ${icon('boss')} boss</div>
     ${partyMini()}
     <div class="row"><button id="bagbtn">${icon('item')} BAG (${G.bag.length})</button><button id="savebtn">SAVE &amp; QUIT</button><button id="forfeitbtn" class="danger">FORFEIT</button></div>
     <div class="row maptog"><button id="mauto" class="tog ${G.auto ? 'on' : ''}">AUTO: ${G.auto ? 'ON' : 'OFF'}</button><button id="mquick" class="tog ${G.quick ? 'on' : ''}">QUICK: ${G.quick ? 'ON' : 'OFF'}</button></div>
@@ -847,7 +847,7 @@ function winFight() {
   noteDowned();
   const t = G.node.type, fl = Math.max(...B.foes.map(e => e.lvl));
   B.over = 'win';
-  if (t === 'boss') G.award = eliteNode(G.node) ? null : awardBoss(G.w, party);
+  if (t === 'boss') G.award = eliteNode(G.node) || r4Dwarf(G.node) ? null : awardBoss(G.w, party);
   G.learnQ = [];
   B.gains = party.map(p => {
     const g = fightRewards(p, fl, t, B.downed.has(p));
@@ -859,10 +859,12 @@ function winFight() {
   renderBattle();
 }
 const eliteNode = n => !!n && n.gi != null && n.gi < MOON_ELITE.length && isMoon(G.w);
+const r4Dwarf = n => REALM === 3 && G.w === 7 && !!n && n.gi === 0;   // Neptune: Mother Earth comes next
 function afterFight() {
   const t = G.node.type;
   processLearns(() => {
     if (t === 'elite') return showUpgrade('ELITE TREASURE!', showMap);
+    if (t === 'boss' && r4Dwarf(G.node)) return showUpgrade('THE DWARF PLANET FALLS!', () => { const n = { ...G.node, gi:1 }; G.node = n; startFight(n); });
     if (t === 'boss' && eliteNode(G.node)) return showUpgrade(`${bossInfoOf(G.w, G.node).name.toUpperCase()} DOWN!`, showMap);   // the Moon: straight on to the next one
     if (t === 'boss') return showUpgrade("HERO'S LOOT!", showWorldClear);
     showMap();
@@ -872,7 +874,7 @@ function afterFight() {
 function awardHTML() {
   const a = G.award; if (!a) return '';
   const lines = [];
-  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter. <b>Realm 3: World Domination is now open!</b>' : ''}${a.realm === 3 ? ' <b>The slimes rule the Earth, the Moon and the Sun.</b>' : ''}`);
+  if (a.realm) lines.push(`<b>REALM ${a.realm} CLEARED!</b> Star ${starsUnlocked()} is unlocked: every slime can now hold ${starCap()} boost points.${a.realm === 1 ? ' <b>Realm 2: Genre Hop is now open, and Light, Dark and Psychic slimes can start runs!</b>' : ''}${a.realm === 2 ? ' <b>Fusion unlocked!</b> On the starter screen you can now fuse two slimes into a fused starter. <b>Realm 3: World Domination is now open!</b>' : ''}${a.realm === 3 ? ' <b>The slimes rule the Earth, the Moon and the Sun. Realm 4: Lights Out is now open!</b>' : ''}${a.realm === 4 ? ' <b>The slimes rule the whole solar system.</b>' : ''}`);
   if (a.shared) lines.push(`+${a.shared} shared star point (first time beating this boss)`);
   a.combos.forEach(c => lines.push(`${c.name}: +${c.pts} star points (${c.label})`));
   return lines.length ? `<div class="award">${lines.map(l => `<div>${l}</div>`).join('')}<small>Spend star points on the starter screen at the start of a run.</small></div>` : '';
@@ -880,7 +882,7 @@ function awardHTML() {
 function showWorldClear() {
   if (G.w >= WORLDS.length - 1) {
     app.innerHTML = `<h1>REALM ${REALM + 1} CLEARED!</h1>${img(unitURL(party[0]), 'big bob')}
-      <div class="sub" style="text-align:center">${BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM === 2 ? '' : REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
+      <div class="sub" style="text-align:center">${REALM === 3 ? R4_FINALE.outro : BOSS_INFO[BOSS_INFO.length - 1].outro} ${REALM >= 2 ? '' : REALM ? 'Every genre has been hopped. The slimes have won.' : 'From level 1 punching bags to legends of the God\'s Planes. The slimes have won.'}</div>${awardHTML()}${partyMini()}
       <div class="row" style="margin-top:12px"><button class="primary" id="go">NEW RUN</button></div>`;
     return document.getElementById('go').onclick = renderPick;
   }
@@ -1018,7 +1020,7 @@ function renderBattle() {
   const hold = B.hold = B.hold || {};
   const mh = k => hold[k] ? ` style="min-height:${hold[k]}px"` : '';
   app.innerHTML = `
-    <div class="bhead"${mh('bhead')}><div class="btitle">W${G.w + 1} ${WORLDS[G.w].name} · ${title} F${node.f + 1}</div>${battleBar()}</div>
+    <div class="bhead"${mh('bhead')}><div class="btitle">W${G.w + 1} ${WORLDS[G.w].name} · ${title} F${node.f + 1}${planetRule() ? ` · ${planetRule().n.toUpperCase()}` : ''}</div>${battleBar()}</div>
     ${orderBar().replace('class="order"', `class="order"${mh('order')}`)}
     <div class="row foes">${B.foes.map(unitCard).join('')}</div>
     <div class="row mine">${party.map(unitCard).join('')}</div>

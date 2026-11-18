@@ -860,12 +860,25 @@ const REALM_WORLDS = [[
     { name:'Tropical Forests', bg:'#0c2014', els:['life','life','water','psychic','lightning','dark'] },
     { name:'USA',              bg:'#10142a', els:['lightning','fire','earth','light','water'] },
     { name:'The Moon',         bg:'#0a0a14', els:['light','dark','psychic'] }
+  ],
+  // Realm 4: Lights Out. With the Sun gone dark, the slimes leave a ruined Earth and take the whole solar system.
+  // Every planet bends one combat rule (PLANET_RULES in realm4.js). Neptune ends with two bosses back to back.
+  [
+    { name:'Ruined Earth', bg:'#1c1612', els:['earth','dark','fire','life','lightning'] },
+    { name:'Mercury',      bg:'#2a1608', els:['fire','lightning','light','earth','psychic'] },
+    { name:'Venus',        bg:'#1e2a10', els:['life','dark','fire','psychic','water'] },
+    { name:'Mars',         bg:'#2a0e0a', els:['earth','fire','dark','lightning','light'] },
+    { name:'Jupiter',      bg:'#2a1c10', els:['lightning','lightning','water','psychic','earth'] },
+    { name:'Saturn',       bg:'#221a10', els:['psychic','light','dark','earth','water'] },
+    { name:'Uranus',       bg:'#0c2226', els:['water','water','light','psychic','lightning'] },
+    { name:'Neptune',      bg:'#0a1230', els:['water','dark','psychic','light','earth','life'] }
   ]];
 // The realm you are playing: WORLDS and BOSS_INFO point at it (see setRealm). Realm 2 needs Realm 1 cleared.
 const REALM_DEF = [
   { name:'Realm 1: The Classic Quest', blurb:'Eight worlds of fantasy heroes.', foeHp:1, foeOff:1 },
   { name:'Realm 2: Genre Hop',         blurb:'Eight worlds, one for every kind of story.', foeHp:1.5, foeOff:1.22 },
-  { name:'Realm 3: World Domination',  blurb:'The slimes take over the Earth... then the Moon.', foeHp:1.6, foeOff:1.31 }
+  { name:'Realm 3: World Domination',  blurb:'The slimes take over the Earth... then the Moon.', foeHp:1.6, foeOff:1.31 },
+  { name:'Realm 4: Lights Out',        blurb:'The Sun is gone. Take the whole solar system.', foeHp:1.8, foeOff:1.45 }
 ];
 const MOON_W = 7;   // Realm 3's last world: the gauntlet (see genMap and the Moon bosses)
 const isMoon = (w = 0) => REALM === 2 && w === MOON_W;
@@ -977,8 +990,32 @@ const MOON_ELITE = [
   { name:'Dark Saber', spr:'b_darksaber', els:['dark'], intro:'DARK SABER breathes heavily through a bucket. "I am your... hold on." He checks a note card. "I am your FATHER. Probably."',
     outro:'Dark Saber\'s bucket falls off. "Don\'t look at me!" He runs away, cape catching on everything.' }
 ];
+// Realm 4 bosses (all humanoid). Index 7 is the Dwarf Planet; Mother Earth (R4_FINALE) waits right after him.
+const REALM4_BOSSES = [
+  { name:'Max Wreckage', spr:'b4_max', els:['earth', 'dark'], stand:['fighter', 'earth'], intro:'MAX WRECKAGE revs a buggy made of three other buggies. "The Sun went out and the world went with it. Everything out here is mine now, blobs. Including your goo."',
+    outro:'Max Wreckage climbs out of the wreck. "Fine. Take the stars. Earth\'s got nothing left anyway."' },
+  { name:'Quicksilver', spr:'b4_quick', els:['lightning'], stand:['rogue', 'lightning'], intro:'A silver blur stops in front of you. QUICKSILVER taps the winged helmet. "Mercury is the fastest planet. I am the fastest thing ON it. Try to keep up."',
+    outro:'Quicksilver is, for once, standing still. "...Rematch. Later. Much, much later."' },
+  { name:'Venus the Vain', spr:'b4_venus', els:['life', 'dark'], stand:['bard', 'life'], intro:'VENUS THE VAIN admires herself in a hand mirror as acid rain sizzles around her. "Ugh. Slimes. Let me fix that." She uncorks a perfume that melts the air.',
+    outro:'Venus checks her mirror. A single hair is out of place. She shrieks and flees into the clouds.' },
+  { name:'Commander Ares', spr:'b4_ares', els:['fire'], stand:['fighter', 'fire'], intro:'COMMANDER ARES plants his spear in the red dust. His soldiers lock shields. "Mars has never lost a war. Today is not a good day to start."',
+    outro:'Commander Ares salutes. "Mars... surrenders. Do not write that down."' },
+  { name:'Storm King Jove', spr:'b4_jove', els:['lightning', 'light'], stand:['sorcerer', 'lightning'], intro:'The Great Red Spot parts and STORM KING JOVE rises, lightning in his fist. "I AM THE LARGEST THING IN THIS SYSTEM. YOU ARE PUDDING."',
+    outro:'Storm King Jove sits on a cloud. "Largest planet. Smallest win. Fine."' },
+  { name:'The Ringmaster', spr:'b4_ring', els:['psychic', 'light'], stand:['bard', 'psychic'], intro:'THE RINGMASTER cracks her whip and Saturn\'s rings light up like a circus. "Laaadies and slimes! Tonight\'s main event: YOU, versus the greatest show in the galaxy!"',
+    outro:'The Ringmaster tips her hat. "What a show! You\'re hired. No? Fine. Take a bow."' },
+  { name:'Sir Tilt', spr:'b4_tilt', els:['water'], stand:['bulwark', 'water'], intro:'SIR TILT stands perfectly sideways, lance raised. "Uranus spins on its side. So do I. Nobody has ever hit me straight on."',
+    outro:'Sir Tilt finally falls over. Fully. "...Huh. So this is what upright feels like."' },
+  { name:'The Dwarf Planet', spr:'b4_dwarf', els:['earth', 'water'], stand:['fighter', 'earth'], intro:'A stout, heavily armored dwarf drags a huge axe across Neptune\'s ice, a tiny moon circling his head. THE DWARF PLANET: "Demoted. DEMOTED! I was a PLANET! Somebody is paying for this, and it is YOU."',
+    outro:'The Dwarf Planet drops his axe. "...Still a planet in my heart." Then the ice starts to shake.' }
+];
+// Neptune's true final boss, fought straight after the Dwarf Planet.
+const R4_FINALE = { name:'Mother Earth', spr:'b4_mother', els:['life', 'earth', 'water'], stand:['cleric', 'life'],
+  intro:'The ice cracks open and MOTHER EARTH rises, vast and green and furious, oceans in her hair. "Children. You put out my Sun. You froze my home. You will go no further."',
+  outro:'Mother Earth kneels... and smiles. "You did not destroy the world. You are what grew in the dark." She lights a new sun in her hands and gives it to you. The slimes rule the solar system.' };
 let BOSS_INFO = REALM1_BOSSES;
-function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES, REALM3_BOSSES][r]; }
+function setRealm(r) { REALM = r; WORLDS = REALM_WORLDS[r]; BOSS_INFO = [REALM1_BOSSES, REALM2_BOSSES, REALM3_BOSSES, REALM4_BOSSES][r]; }
+const isR4Finale = (w, node) => REALM === 3 && w === 7 && !!node && node.gi === 1;
 // Which boss a boss tile holds: the Moon's tiles carry an Elite 4 index (gi 0..3); every other boss tile is the world's boss.
-const bossInfoOf = (w, node) => node && node.gi != null && node.gi < MOON_ELITE.length ? MOON_ELITE[node.gi] : BOSS_INFO[w];
+const bossInfoOf = (w, node) => isR4Finale(w, node) ? R4_FINALE : isMoon(w) && node && node.gi != null && node.gi < MOON_ELITE.length ? MOON_ELITE[node.gi] : BOSS_INFO[w];
 
