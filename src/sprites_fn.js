@@ -46,7 +46,7 @@ function fusedURL(el, el2, lk) {
 function ultraURL(u) {
   const lk = u.el2 && u.look ? u.look : null;
   const key = `U${u.el}|${u.el2 || ''}|${u.cls}|${JSON.stringify(lk)}`; if (_sc[key]) return _sc[key];
-  const base = SPR.slime, H = base.length, W = base[0].length, PAD = 2, px = 8, GH = H + PAD * 2, GW = W + PAD * 2;
+  const base = SPR.slime, H = base.length, W = base[0].length, PAD = 0, px = 8, GH = H + PAD * 2, GW = W + PAD * 2;
   const g = Array.from({ length:GH }, () => Array(GW).fill(null));
   // body (gradient for fused slimes)
   let y0 = H, y1 = 0, x0 = W, x1 = 0; base.forEach((row, yy) => { for (let xx = 0; xx < W; xx++) if (/[eE]/.test(row[xx])) { y0 = Math.min(y0, yy); y1 = Math.max(y1, yy); x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); } });
@@ -68,8 +68,8 @@ function ultraURL(u) {
   for (let yy = 0; yy < GH; yy++) for (let xx = 0; xx < GW; xx++) if (!g[yy][xx]) {
     const d = near(yy, xx); if (d > 2) continue;
     const ac = mixHex(u.el2 && xx > GW / 2 ? ELEM[u.el2].c : ELEM[u.el].c, '#ffffff', 0.35);
-    x.globalAlpha = d === 1 ? 0.8 : 0.4; x.fillStyle = ac; x.fillRect(xx * px, yy * px, px, px);
-    if (d === 2 && R() < 0.12) { x.globalAlpha = 1; x.fillStyle = mixHex(ac, '#ffffff', 0.6); x.fillRect(xx * px + 2, yy * px + 2, px - 4, px - 4); }
+    if (d === 1) { x.globalAlpha = 0.85; x.fillStyle = ac; x.fillRect(xx * px, yy * px, px, px); }   // tight glowing outline
+    if (d === 2 && R() < 0.14) { x.globalAlpha = 1; x.fillStyle = mixHex(ac, '#ffffff', 0.6); x.fillRect(xx * px + 2, yy * px + 2, px - 4, px - 4); }
   }
   x.globalAlpha = 1;
   for (let yy = 0; yy < GH; yy++) for (let xx = 0; xx < GW; xx++) if (g[yy][xx]) { x.fillStyle = g[yy][xx]; x.fillRect(xx * px, yy * px, px, px); }
