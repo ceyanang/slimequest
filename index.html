@@ -7408,7 +7408,8 @@ function starBox(el, cls) {
   const stars = Array.from({ length:REALMS + 1 }, (_, i) => i < unlocked ? (alloc >= STAR_STEP * (i + 1) ? '&#9733;' : '&#9734;') : '<span class="lock">locked</span>').join(' ');
   return `<div class="starbox"><div class="sttitle"><span>STAR BOOSTS <span class="stars">${stars}</span></span><span class="stbtns"><button id="starinfo" class="infobtn">INFO</button><button id="staredit" class="infobtn ${STAR_EDIT ? 'primary' : ''}">${STAR_EDIT ? 'DONE' : 'SPEND'}</button></span></div>
     <div class="stsub"><b>${alloc}/${cap}</b> placed · <b>${room}</b> to spend</div>
-    <div class="stsub split"><span>SHARED <b>${Math.max(0, sharedAvail())}</b> left</span><span>THIS SLIME <b>${ownLeft(key)}</b> left</span></div></div>`;
+    <div class="stsub split"><span>SHARED <b>${Math.max(0, sharedAvail())}</b> left</span><span>THIS SLIME <b>${ownLeft(key)}</b> left</span></div>
+    ${STAR_EDIT && room <= 0 ? `<div class="stsub dim">${alloc >= cap ? `This slime is at its cap (${cap}). Clear another realm to unlock the next star.` : `No points to spend on this slime. Stars raise the cap; points are earned: beat the World 3 boss (+2), World 5 boss (+3) or clear a realm (+5) with this element+class in your party, or beat any boss for the first time (+1 shared, usable on any slime). Combos with points waiting show a <b>!</b> badge.`}</div>` : ''}</div>`;
 }
 function showStarInfo() {
   const key = comboKey(choice.el, choice.cls), own = comboPts(key), alloc = starAlloc(key);
