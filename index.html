@@ -6144,30 +6144,44 @@ function recruitOffers(team) {
   }
   return out;
 }
-// Move upgrades improve ONE thing, rolled from what the move has: damage, status chance, (rarely) a status's + version,
-// its support effect, or cost. A few favorites keep the old all-in-one upgrade.
+// Move upgrades always improve the same thing for a given move, picked from the move's role:
+// damage moves get +POW (and +5% to any status chance), status-built moves get +status chance, pure status moves +chance
+// (a guaranteed status becomes its + version instead), pure debuffs +1 stage, support moves their main effect,
+// bombs/counters their power; anything else gets cheaper. A few favorites keep the old all-in-one upgrade.
 const FULL_BOOST = new Set(['Dissonance', 'Firebrand Anthem', 'Fan the Flames', 'Bonfire Song']);
 const BOOST_STATUS = ['burn', 'poison', 'stun', 'para', 'blind', 'confuse'];
 const r2 = x => Math.round(x * 100) / 100;
-function boostOptions(m) {
-  if (FULL_BOOST.has(m.n.replace(/\+$/, ''))) return [{ t:'everything improves', w:1, f:() => boostAll(m) }];
-  const o = [], sts = BOOST_STATUS.filter(k => m[k] && m[k] < 1), plusable = BOOST_STATUS.filter(k => k !== 'stun' && m[k] && !m[k + 'P']);
-  if (m.pow > 0) o.push({ t:`+${m.hits > 1 ? 5 : 10} POW`, w:3, f:() => { m.pow += m.hits > 1 ? 5 : 10; } });
-  if (sts.length) o.push({ t:`+10% ${sts.join('/')} chance`, w:2, f:() => sts.forEach(k => { m[k] = Math.min(1, r2(m[k] + 0.1)); }) });
-  if (plusable.length) { const k = plusable[0]; o.push({ t:`${k} becomes ${k}+`, w:0.6, f:() => { m[k + 'P'] = true; } }); }
-  const sup = [];
-  if (m.healPct) sup.push(['+5% heal', () => { m.healPct = r2(m.healPct + 0.05); }]);
-  if (m.shieldPct) sup.push(['+5% shield', () => { m.shieldPct = r2(m.shieldPct + 0.05); }]);
-  if (m.regen) sup.push(['+2% regen', () => { m.regen[0] = r2(m.regen[0] + 0.02); }]);
-  if (m.revive) sup.push(['+10% revive HP', () => { m.revive = r2(m.revive + 0.1); }]);
-  if (m.offUp) sup.push(['+1 OFF stage', () => { m.offUp += 1; }]);
-  if (m.staGain) sup.push(['+10 STA given', () => { m.staGain += 10; }]);
-  if (m.staDrain) sup.push(['+10 STA drained', () => { m.staDrain += 10; }]);
-  sup.forEach(([t, f]) => o.push({ t, w:2 / sup.length + 0.5, f }));
-  if (m.s >= 20) o.push({ t:'-5 STA cost', w:1, f:() => { m.s -= 5; } });
-  return o.length ? o : [{ t:'everything improves', w:1, f:() => boostAll(m) }];
+const pushChance = (m, ks, d) => ks.forEach(k => { m[k] = Math.min(1, r2(m[k] + d)); });
+function boostPlan(m) {
+  const P = (t, f) => ({ t, f });
+  if (FULL_BOOST.has(m.n.replace(/\+$/, ''))) return P('everything improves', () => boostAll(m));
+  const sts = BOOST_STATUS.filter(k => m[k]), open = sts.filter(k => m[k] < 1), powUp = m.hits > 1 ? 5 : 10;
+  const hostile = m.t === 'foe' || m.t === 'foes';
+  if (m.pow > 0) {
+    const statusBuilt = m.pow <= 40 && sts.some(k => m[k] >= 0.4);
+    if (statusBuilt && open.length) return P(`+10% ${open.join('/')} chance, +5 POW`, () => { pushChance(m, open, 0.1); m.pow += 5; });
+    if (open.length) return P(`+${powUp} POW, +5% ${open.join('/')} chance`, () => { m.pow += powUp; pushChance(m, open, 0.05); });
+    return P(`+${powUp} POW`, () => { m.pow += powUp; });
+  }
+  if (m.bomb) return P('+10 bomb POW', () => { m.bomb.pow += 10; });
+  if (m.counter) return P('+10 counter POW', () => { m.counter.pow += 10; });
+  if (hostile && sts.length) {
+    if (open.length) return P(`+10% ${open.join('/')} chance`, () => pushChance(m, open, 0.1));
+    const plus = sts.find(k => k !== 'stun' && !m[k + 'P']);
+    if (plus) return P(`${plus} becomes ${plus}+`, () => { m[plus + 'P'] = true; });
+  }
+  if (hostile) for (const [k, lab] of [['weaken', 'OFF'], ['expose', 'DEF'], ['slow', 'SPE']]) if (m[k] && m[k] < 3) return P(`lowers ${lab} 1 more stage`, () => { m[k] += 1; });
+  if (m.healPct) return P('+5% heal', () => { m.healPct = r2(m.healPct + 0.05); });
+  if (m.shieldPct) return P('+5% shield', () => { m.shieldPct = r2(m.shieldPct + 0.05); });
+  if (m.regen) return P('+2% regen', () => { m.regen[0] = r2(m.regen[0] + 0.02); });
+  if (m.revive) return P('+10% revive HP', () => { m.revive = r2(m.revive + 0.1); });
+  if (m.offUp) return P('+1 OFF stage', () => { m.offUp += 1; });
+  if (m.staGain) return P('+10 STA given', () => { m.staGain += 10; });
+  if (m.staDrain) return P('+10 STA drained', () => { m.staDrain += 10; });
+  if (m.s >= 20) return P('-5 STA cost', () => { m.s -= 5; });
+  return P('everything improves', () => boostAll(m));
 }
-function rollBoost(m) { const o = boostOptions(m); let r = Math.random() * o.reduce((s, x) => s + x.w, 0); for (const x of o) { if ((r -= x.w) < 0) return x; } return o[0]; }
+const rollBoost = boostPlan;   // kept name: upgrades are no longer random
 function boostMove(m, opt = rollBoost(m)) {
   opt.f();
   if (!m.n.endsWith('+')) m.n += '+';
