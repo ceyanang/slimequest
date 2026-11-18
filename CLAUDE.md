@@ -29,7 +29,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 - `src/bossart.js`: Realm 2 boss art (base64 PNG). `src/bossart3.js`: Realm 3 boss art (source PNGs in `art/realm3/`).
 
 ## Systems in short
-- Realms: Realm 1 (Classic Quest), Realm 2 (Genre Hop, unlocked by clearing Realm 1; +50% enemy HP, +30% OFF), Realm 3 (World Domination, unlocked by clearing Realm 2; +60% HP, +35% OFF).
+- Realms: Realm 1 (Classic Quest), Realm 2 (Genre Hop, unlocked by clearing Realm 1; +50% enemy HP, +22% OFF), Realm 3 (World Domination, unlocked by clearing Realm 2; +60% HP, +31% OFF).
 - Realm 3 target: clearable by a 2-star team or a 3-star carry (sim: `R=2 SB=1.2 node tools/sim.js 300 mixed` about 25% clear, same as Realm 2 at 2 stars).
 - The Moon (Realm 3 world 8): full heal on arrival, Elite 4 back to back (tiles carry `gi` 0-3), one camp, then the Sun (gi 4). Only the usual after-fight revive/15% heal between Elite fights.
 - Realm 3 natives: each country (not the Moon) has 3 one-element creatures (`CREATURES`, `R3_NATIVE` in engine.js, 16x16 sprites `cr_*` in bossart3.js); about half of ordinary foes are natives (`NATIVE_RATE`), hyenas/penguins come in packs, natives never fuse.
