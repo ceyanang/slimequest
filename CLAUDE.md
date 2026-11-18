@@ -25,6 +25,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 - `src/meta.js`: saved progress (stars, shared points, realm clears), save/resume run.
 - `src/ui.js`: every screen (starter pick, map, battle, recruit, shrine, bag/pocket, inspect popup).
 - Battle text: Pokemon-style dialogue box (`setDlg`/`dlgWait`/`typeInto` in ui.js) replaces the move panel while actions play; pre-boss cutscene `showBossIntro` pages the intro and waits for CONTINUE.
+- Speed modes: AUTO and QUICK toggle from the map and the battle bar (saved with the run). QUICK = auto + 2x, no move panel/battle text, and level-up moves are learned by `smartLearn` (replaces the weakest move if better, counting party gaps: heal, hit-all, protect). On 2x the dialogue stays up longer than other waits (1.4x shorter, not 2.2x).
 - `src/bossart.js`: Realm 2 boss art (base64 PNG). `src/bossart3.js`: Realm 3 boss art (source PNGs in `art/realm3/`).
 
 ## Systems in short
