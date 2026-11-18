@@ -7,7 +7,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Battle pacing respects the 2x speed toggle.
 // QUICK mode = auto + 2x with no move panel or battle text; new moves are learned automatically (smartLearn).
 const isAuto = () => !!(G && (G.auto || G.quick)), isFast = () => !!(G && (G.fast || G.quick));
-const wait = ms => sleep(ms / (isFast() ? 2.2 : 1));
+const SPEED = () => G && G.quick ? 4.4 : isFast() ? 2.2 : 1;   // QUICK runs at 4x, 2x at 2.2x
+const wait = ms => sleep(ms / SPEED());
 
 /* ================= shared bits ================= */
 function chartHTML() {
@@ -678,7 +679,7 @@ const dlgTime = t => G && G.quick ? 0 : Math.min(3600, 650 + (t || '').length / 
 function dlgWait(ms) {
   return new Promise(res => {
     const done = () => { clearTimeout(t); if (B && B.skip === done) B.skip = null; res(); };
-    const t = setTimeout(done, ms / (G && G.quick ? 2.2 : G && G.fast ? 1.4 : 1));
+    const t = setTimeout(done, ms / (G && G.quick ? 4.4 : G && G.fast ? 1.4 : 1));
     if (B) B.skip = done;
   });
 }
@@ -939,7 +940,7 @@ function smartLearn(p, m) {
 }
 function battleBar() {
   if (B.over) return '';
-  return `<div class="autobar"><button id="auto" class="${G.auto ? 'on' : ''}">AUTO</button><button id="fast" class="${isFast() ? 'on' : ''}">${isFast() ? '2x' : '1x'}</button><button id="quick" class="${G.quick ? 'on' : ''}">QUICK</button></div>`;
+  return `<div class="autobar"><button id="auto" class="${G.auto ? 'on' : ''}">AUTO</button><button id="fast" class="${isFast() ? 'on' : ''}">${G.quick ? '4x' : isFast() ? '2x' : '1x'}</button><button id="quick" class="${G.quick ? 'on' : ''}">QUICK</button></div>`;
 }
 
 function noteDowned() { if (B) party.forEach(p => { if (p.hp <= 0) B.downed.add(p); }); }
