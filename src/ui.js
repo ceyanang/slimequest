@@ -5,7 +5,9 @@ let party = [], G = null, B = null;
 let TITLE_UP = false, STAR_EDIT = false;   // true while the title / starter screen is showing
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Battle pacing respects the 2x speed toggle.
-const wait = ms => sleep(ms / ((G && G.fast) ? 2.2 : 1));
+// QUICK mode = auto + 2x with no move panel or battle text; new moves are learned automatically (smartLearn).
+const isAuto = () => !!(G && (G.auto || G.quick)), isFast = () => !!(G && (G.fast || G.quick));
+const wait = ms => sleep(ms / (isFast() ? 2.2 : 1));
 
 /* ================= shared bits ================= */
 function chartHTML() {
@@ -319,11 +321,14 @@ function showMap() {
     ${isMoon(G.w) ? `<div class="sub">The Elite 4 wait across the surface, back to back. Between fights you only get the usual patch-up. One rest at the Moon Base, then the Sun.</div>` : ''}<div class="sub"${isMoon(G.w) ? ' style="display:none"' : ''}>Tap a flashing node. Enemies ahead: about Lv${nextLv}. Level cap here: Lv${levelCap()}. Fight tiles show the enemy and its element. ${icon('elite')} elite · ${icon('recruit')} recruit · ${icon('camp')} camp · ${icon('treasure')} treasure · ${icon('train')} training · ${icon('mystery')} mystery · ${icon('item')} item · ${icon('dojo')} move training · ${icon('start')} start · ${REALM >= 1 && !isMoon(G.w) ? icon('fuse') + ' fusion shrine · ' : ''}${icon('boss')} boss</div>
     ${partyMini()}
     <div class="row"><button id="bagbtn">${icon('item')} BAG (${G.bag.length})</button><button id="savebtn">SAVE &amp; QUIT</button><button id="forfeitbtn" class="danger">FORFEIT</button></div>
+    <div class="row maptog"><button id="mauto" class="tog ${G.auto ? 'on' : ''}">AUTO: ${G.auto ? 'ON' : 'OFF'}</button><button id="mquick" class="tog ${G.quick ? 'on' : ''}">QUICK: ${G.quick ? 'ON' : 'OFF'}</button></div>
     ${canRerollMap() ? '<div class="row"><button id="rerollmap">REROLL MAP</button></div>' : ''}
     <div class="tip">Tap a slime to see its stats and moves.</div>
     <svg viewBox="0 0 ${W} ${H}" class="map" style="background:linear-gradient(rgba(11,9,20,.38),rgba(11,9,20,.38)),url(${worldArt(REALM * 8 + G.w)}) center/cover;image-rendering:pixelated">${lines}${nodes}</svg>`;
   app.querySelectorAll('[data-pm]').forEach(c => c.onclick = () => showSlimeCard(+c.dataset.pm));
   document.getElementById('bagbtn').onclick = () => showBag(showMap);
+  document.getElementById('mauto').onclick = () => { G.auto = !G.auto; SFX.play('buff'); showMap(); };
+  document.getElementById('mquick').onclick = () => { G.quick = !G.quick; SFX.play('buff'); showMap(); };
   document.getElementById('savebtn').onclick = () => { SAVED = snapshotRun(); persist(); SFX.play('level'); renderPick(); };
   const rm = document.getElementById('rerollmap');
   if (rm) rm.onclick = () => { SFX.play('buff'); G.map = genMap(0); G.pos = null; showMap(); };
@@ -415,7 +420,7 @@ function showTrain() {
     SFX.play('level');
     app.innerHTML = `<h1>TRAINED!</h1>${img(unitURL(p), 'mid bob')}
       <div class="sub" style="text-align:center"><b>${p.name}</b>: Lv${from} → <b>Lv${p.lvl}</b>${G.learnQ.length ? `<br>Wants to learn: ${G.learnQ.map(x => x.m.n).join(', ')}` : ''}</div>
-      <div class="row"><button class="primary" id="go">${G.learnQ.length ? 'LEARN NEW MOVES' : 'BACK TO MAP'}</button></div>`;
+      <div class="row"><button class="primary" id="go">${G.learnQ.length && !G.quick ? 'LEARN NEW MOVES' : 'BACK TO MAP'}</button></div>`;
     document.getElementById('go').onclick = () => processLearns(showMap);
   });
 }
@@ -591,7 +596,7 @@ function useBagItem(i, back) {
     G.learnQ = gainLevels(p, n).map(m => ({ u:p, m })); SFX.play('level');
     app.innerHTML = `<h1>${it.n.toUpperCase()}!</h1>${img(unitURL(p), 'mid bob')}
       <div class="sub" style="text-align:center"><b>${p.name}</b>: Lv${from} → <b>Lv${p.lvl}</b>${G.learnQ.length ? `<br>Wants to learn: ${G.learnQ.map(x => x.m.n).join(', ')}` : ''}</div>
-      <div class="row"><button class="primary" id="go">${G.learnQ.length ? 'LEARN NEW MOVES' : 'BACK TO BAG'}</button></div>`;
+      <div class="row"><button class="primary" id="go">${G.learnQ.length && !G.quick ? 'LEARN NEW MOVES' : 'BACK TO BAG'}</button></div>`;
     document.getElementById('go').onclick = () => processLearns(again);
   };
   if (it.kind === 'hold') return pickSlime('EQUIP', `Who holds the <b>${it.n}</b>? Their current item goes back in the bag.`, () => true, p => {
@@ -610,6 +615,7 @@ function useBagItem(i, back) {
 
 /* learning moves */
 function processLearns(then) {
+  if (G.quick) { G.learnQ.splice(0).forEach(({ u, m }) => smartLearn(u, m)); return then(); }
   const next = G.learnQ.shift();
   if (!next) return then();
   const { u, m } = next;
@@ -656,7 +662,7 @@ function startFight(node) {
 }
 async function openBattle(line) {
   const b0 = B; B.busy = true; setDlg([line]); renderBattle();
-  await dlgWait(dlgTime(line));
+  await dlgWait(Math.max(G.quick ? 600 : 0, dlgTime(line)));
   if (B !== b0) return;
   B.busy = false; startRound();
 }
@@ -664,15 +670,15 @@ async function openBattle(line) {
 /* ---- Pokemon-style dialogue box: while actions play out, the move panel becomes a text box that types out what happened.
    Tap it to finish the text or skip ahead. ---- */
 const TW = { key:null, i:0, timer:null };
-const dlgCps = () => (G && G.fast) ? 130 : 60;   // characters per second
+const dlgCps = () => isFast() ? 130 : 60;   // characters per second
 function setDlg(lines) { B.dlg = lines.filter(Boolean).map(l => String(l).replace(/<[^>]+>/g, '')); B.dlgId = (B.dlgId || 0) + 1; }
 const dlgText = () => (B.dlg || []).join('\n');
 // How long an action's text stays up: typing time plus a moment to read it.
-const dlgTime = t => Math.min(3600, 650 + (t || '').length / 60 * 1000);
+const dlgTime = t => G && G.quick ? 0 : Math.min(3600, 650 + (t || '').length / 60 * 1000);
 function dlgWait(ms) {
   return new Promise(res => {
     const done = () => { clearTimeout(t); if (B && B.skip === done) B.skip = null; res(); };
-    const t = setTimeout(done, ms / ((G && G.fast) ? 2.2 : 1));
+    const t = setTimeout(done, ms / (G && G.quick ? 2.2 : G && G.fast ? 1.4 : 1));
     if (B) B.skip = done;
   });
 }
@@ -735,7 +741,7 @@ async function advance() {
     if (u.hp <= 0) { B.qi++; continue; }
     if (u.side === 'P') {
       if (u.stun) { const L0 = B.log.length; act(u, REST, null, party, B.foes, B.log); setDlg(B.log.slice(L0)); B.qi++; renderBattle(); await dlgWait(dlgTime(dlgText())); if (B !== b0) return; continue; }
-      if (!G.auto) { B.sel = u; B.busy = false; renderBattle(); return; } // wait for the player
+      if (!isAuto()) { B.sel = u; B.busy = false; renderBattle(); return; } // wait for the player
     }
     B.sel = null;
     const mine = u.side === 'P', al = mine ? party : B.foes, fo = mine ? B.foes : party;
@@ -908,15 +914,32 @@ function moveButton(u, m, key, ref) {
     ${locked ? `<div class="cdov">LOCKED BY ${ITEMS[u.item].n.toUpperCase()}</div>` : short ? `<div class="cdov">NEED ${m.s} STA</div>` : noFallen ? `<div class="cdov">NOBODY IS DOWN</div>` : ''}</button>`;
 }
 
-function toggleAuto() {
-  G.auto = !G.auto;
+function toggleAuto(k = 'auto') {
+  G[k] = !G[k];
   // If it's your turn right now, let the AI take it.
-  if (G.auto && B && B.sel && !B.busy && !B.over) { B.sel = null; B.pending = null; advance(); }
+  if (isAuto() && B && B.sel && !B.busy && !B.over) { B.sel = null; B.pending = null; advance(); }
   else renderBattle();
+}
+// Auto-learn for QUICK mode: take a new move if it beats the move it would replace, counting what the party is missing
+// (nobody heals, nobody hits every foe, nobody protects) so the team stays well rounded.
+const ROLE_TESTS = [
+  [m => m.healPct || m.teamHeal || m.regen || m.mendAlly || m.teamLeech || m.revive, 45],
+  [m => m.pow > 0 && m.t === 'foes', 25],
+  [m => m.shieldPct || m.teamShield || m.guard || (m.t === 'allies' && (m.armor || m.offUp)), 20]];
+function smartLearn(p, m) {
+  if (!p.learned.includes(m.n)) p.learned.push(m.n);
+  if (p.moves.some(x => x.n === m.n)) return null;
+  if (p.moves.length < 4) { p.moves.push(m); return m; }
+  const others = party.filter(o => o !== p).flatMap(o => o.moves);
+  const score = (x, rest) => moveValue(x) + ROLE_TESTS.reduce((s, [has, bonus]) => s + (has(x) && !rest.some(has) ? bonus : 0), 0);
+  let best = -1, gain = 0;
+  p.moves.forEach((x, i) => { const rest = [...others, ...p.moves.filter((_, j) => j !== i)], g = score(m, rest) - score(x, rest); if (g > gain) { gain = g; best = i; } });
+  if (best < 0) return null;
+  p.moves[best] = m; return m;
 }
 function battleBar() {
   if (B.over) return '';
-  return `<div class="autobar"><button id="auto" class="${G.auto ? 'on' : ''}">AUTO</button><button id="fast" class="${G.fast ? 'on' : ''}">${G.fast ? '2x' : '1x'}</button></div>`;
+  return `<div class="autobar"><button id="auto" class="${G.auto ? 'on' : ''}">AUTO</button><button id="fast" class="${isFast() ? 'on' : ''}">${isFast() ? '2x' : '1x'}</button><button id="quick" class="${G.quick ? 'on' : ''}">QUICK</button></div>`;
 }
 
 function noteDowned() { if (B) party.forEach(p => { if (p.hp <= 0) B.downed.add(p); }); }
@@ -939,9 +962,11 @@ function renderBattle() {
     const learnN = G.learnQ.length;
     controls = `<div class="banner"><h2>VICTORY!</h2>
       <div class="gains">${B.gains.map(g => `<div class="gain">${img(unitURL(g.p), 'tiny')}<div><b>${g.p.name}</b> Lv${g.from} → <b>Lv${g.to}</b>${g.downed ? ` <span class="downed">downed: half XP, back at 35% HP</span>` : ''}${g.learns.length ? `<br><small>new: ${g.learns.map(m => m.n).join(', ')}</small>` : ''}</div></div>`).join('')}</div>
-      <div class="row"><button class="primary" id="next">${learnN ? 'LEARN NEW MOVES' : node.type === 'elite' || node.type === 'boss' ? 'OPEN TREASURE' : 'BACK TO MAP'}</button></div></div>`;
+      <div class="row"><button class="primary" id="next">${learnN && !G.quick ? 'LEARN NEW MOVES' : node.type === 'elite' || node.type === 'boss' ? 'OPEN TREASURE' : 'BACK TO MAP'}</button></div></div>`;
   } else if (B.over === 'lose') {
     controls = `<div class="banner"><h2>SPLAT</h2><div class="sub">Your party fell in world ${G.w + 1} (${WORLDS[G.w].name}), floor ${node.f + 1}.</div><div class="row"><button class="primary" id="again">NEW RUN</button></div></div>`;
+  } else if (G.quick) {
+    controls = `<div class="hint quickhint">&#9889; QUICK MODE · round ${B.round}<br><small>Tap QUICK above to take over.</small></div>`;
   } else if (B.busy && B.dlg && B.dlg.length) {
     controls = `<div class="dlg" id="bdlg"><div class="dlgt"></div><span class="dlgarrow">&#9660;</span></div>`;
   } else if (B.busy) {
@@ -964,7 +989,7 @@ function renderBattle() {
     <div class="row foes">${B.foes.map(unitCard).join('')}</div>
     <div class="row mine">${party.map(unitCard).join('')}</div>
     <div class="controls"${mh('controls')}>${controls}</div>
-    <div class="log"${mh('log')}>${B.log.slice(-3).map(l => `<div>${l}</div>`).join('')}</div>`;
+    ${G.quick && !B.over ? '' : `<div class="log"${mh('log')}>${B.log.slice(-3).map(l => `<div>${l}</div>`).join('')}</div>`}`;
   // First render of a fight: pre-measure the tallest move panel in the party so your first turn doesn't shift the screen.
   if (!B.over && !hold.probed) {
     hold.probed = true;
@@ -998,7 +1023,8 @@ function renderBattle() {
   if ($('cancel')) $('cancel').onclick = () => { B.pending = null; renderBattle(); };
   if ($('next')) $('next').onclick = afterFight;
   if ($('again')) $('again').onclick = renderPick;
-  if ($('auto')) $('auto').onclick = toggleAuto;
+  if ($('auto')) $('auto').onclick = () => toggleAuto('auto');
+  if ($('quick')) $('quick').onclick = () => toggleAuto('quick');
   if ($('fast')) $('fast').onclick = () => { G.fast = !G.fast; renderBattle(); };
 }
 
