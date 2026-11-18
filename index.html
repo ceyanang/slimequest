@@ -5046,7 +5046,7 @@ const BOSSES2 = [
               { n:'Saber Throw', el:'light', cat:P, pow:75, s:40, t:'foe' } ] });
     const team = [h, named(side(w, L, 'psychic', 'cleric', 0.45), 'Padawan')]; h.teamRef = team; return team; },
   // 2. High Noon: always first, a six-gun, and a telegraphed killing shot every few rounds.
-  (w, L) => { const h = boss2(w, L, 1, { cls:'ranger', dmul:[0.95, 1], k:{ hp:2.1, off:1.1, def:0.95, spd:11, crit:0.15 }, basic:{ n:'Quickdraw', cat:P }, extra:{ first:true },
+  (w, L) => { const h = boss2(w, L, 1, { cls:'ranger', dmul:[0.95, 1], k:{ hp:1.8, off:1.0, def:0.95, spd:11, crit:0.15 }, basic:{ n:'Quickdraw', cat:P }, extra:{ first:true },
       script:['Dust Cloud', 'Six-Shooter', 'High Noon Draw', null],
       phase:{ at:0.5, title:'DUEL AT SUNDOWN', shield:0.15, script:['Six-Shooter', 'High Noon Draw', 'Dust Cloud', 'Fan the Hammer'], offUp:1, say:'High Noon: "Sun\'s going down, partner." He pulls his hat low and the sky turns orange.',
               addMoves:[ { n:'Fan the Hammer', el:'fire', cat:P, pow:16, hits:8, s:55, t:'foe' } ] },
@@ -5329,12 +5329,17 @@ function heal(x, amt) { const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round
 const nm = x => x.name;
 const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0, a) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
 const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
+const DEF_EXP = 0.7, DEF_REF = 11;   // see calcDmg: how strongly DEF reduces damage, and the average base DEF
 function calcDmg(a, d, m, eff, crit) {
   if (a.pas === 'embody' && eff < 1) eff = 1;   // resisted hits land at full strength
   // Physical hits check DEF, special hits check SpD.
   const sp = (m.cat || a.ecat || 'p') === 's', st0 = (sp ? d.sSDef : d.sDef) || 0;
   const ds = m.pierce ? Math.min(0, st0) : st0, e = m.pierce ? Math.max(1, eff) : eff;
-  const dv = (hasPas(d, 'bedrock') ? 1.25 : 1) * (d.pm || 1) * (sp ? d.sdef * (has(d, 'cloak') ? 1.5 : 1) : (d.pas === 'tricky' ? (d.sdef + d.pdef) / 2 : d.pdef) * (has(d, 'armor') ? 1.5 : 1));
+  // Defense is softened: the raw DEF/SpD stat counts as DEF^0.7 measured against an average DEF for that level,
+  // so tanks still take noticeably less and glass cannons stop getting one-shot. Items, passives and stages apply in full.
+  const rawDef = sp ? d.sdef : (d.pas === 'tricky' ? (d.sdef + d.pdef) / 2 : d.pdef), defRef = DEF_REF * mult(d.lvl || 1);
+  const softDef = Math.pow(Math.max(0.1, rawDef), DEF_EXP) * Math.pow(defRef, 1 - DEF_EXP);
+  const dv = (hasPas(d, 'bedrock') ? 1.25 : 1) * (d.pm || 1) * softDef * (sp ? (has(d, 'cloak') ? 1.5 : 1) : (has(d, 'armor') ? 1.5 : 1));
   // Bulk hits (Bulwark): part of the attack stat comes from the attacker's DEF instead of OFF.
   const atk = m.bulk ? offOf(a) * (1 - m.bulk) + a.pdef * stMul(a.sDef || 0, a) * (has(a, 'armor') ? 1.5 : 1) * m.bulk : offOf(a);
   let v = m.pow * (has(a, 'sword') ? 1.25 : 1) * atk / (dv * stMul(ds, d)) * mult(a.lvl) / 5 * e * (crit ? 1.5 : 1);
