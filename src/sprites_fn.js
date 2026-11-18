@@ -3,6 +3,7 @@ const _sc = {};
 function spriteURL(layers, scale = 8) {
   if (typeof layers === 'string') layers = [[layers]];
   if (layers.length === 1 && SPR_IMG[layers[0][0]]) return SPR_IMG[layers[0][0]];
+  if (layers.length === 1 && typeof R4_STANDIN !== 'undefined' && R4_STANDIN[layers[0][0]] && !SPR[layers[0][0]]) { const [c, e] = R4_STANDIN[layers[0][0]]; return spriteURL([[c, roleSwap(c, e)]], scale); }   // Realm 4 boss stand-in art
   const key = JSON.stringify(layers) + scale;
   if (_sc[key]) return _sc[key];
   const h = SPR[layers[0][0]].length, w = SPR[layers[0][0]][0].length;

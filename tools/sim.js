@@ -1,6 +1,6 @@
 const fs=require("fs");
 const D=require('path').join(__dirname,'..','src')+'/';
-eval(fs.readFileSync(D+"data.js","utf8")+fs.readFileSync(D+"engine.js","utf8")+fs.readFileSync(D+"names.js","utf8")+`
+eval(fs.readFileSync(D+"data.js","utf8")+fs.readFileSync(D+"engine.js","utf8")+fs.readFileSync(D+"realm4.js","utf8")+fs.readFileSync(D+"names.js","utf8")+`
 FX=null; if(process.env.R) setRealm(+process.env.R); if(process.env.RD) Object.assign(REALM_DEF[REALM], JSON.parse(process.env.RD)); const DEATHS={}; const SB=+(process.env.SB||1), SBS=process.env.SBS?process.env.SBS.split(',').map(Number):null; if(process.env.AIW) Object.assign(AIW, JSON.parse(process.env.AIW));
 function fight(team,foes){
   let r=0; team.forEach(p=>p._down=false); const mark=()=>team.forEach(p=>{if(p.hp<=0)p._down=true;});
@@ -24,7 +24,8 @@ function runOnce(starter, fixed, stats){ let ultraSeen=false;
       if(!fixed&&party.length<PARTY_MAX){const rc=opts.find(o=>o.type==='recruit'); if(rc) n=rc;}
       pos=n;
       if(n.type==='start') continue;
-      if(n.type==='fight'&&fixed&&!isMoon(w)) n={...n,foe:rollFoe(w)};   // the fixed-shape map was rolled for world 2: re-roll its enemy for this world
+      if(n.type==='fight'&&fixed&&!isMoon(w)) n={...n,foe:rollFoe(w)};
+      if(n.type==='boss'&&REALM===3&&w===7&&n.gi==null) n={...n,gi:0};   // reused map shape: mark the Neptune finale   // the fixed-shape map was rolled for world 2: re-roll its enemy for this world
       if(n.type==='choice'){ n={...n,type:Math.random()<0.5?'fight':'recruit',foe:rollFoe(w)}; }
       if(n.type==='mystery'){ const r=rollMystery(); if(r==='ambush'){ n={...n,type:'fight',foe:rollFoe(w)}; } else if(r==='trap'){ party.forEach(p=>{ if(p.hp>0) p.hp=Math.max(1,p.hp-Math.round(p.max*0.15)); }); continue; } else n={...n,type:r}; }
       if(n.type==='fuse') continue;
@@ -45,6 +46,12 @@ function runOnce(starter, fixed, stats){ let ultraSeen=false;
       if(!fight(party,foes)){ const k='w'+(w+1)+(n.type==='boss'?(n.gi!=null?' boss'+n.gi:' boss'):' '+n.type); DEATHS[k]=(DEATHS[k]||0)+1; return w+f/FLOORS; }
       party.forEach(p=>{ fightRewards(p, fl, n.type, p._down).learns.forEach(m=>autoLearn(p,m)); });
       if(n.type!=='fight') upgradePool(party)[0].f();
+      if(n.type==='boss'&&REALM===3&&w===7&&n.gi===0){   // Realm 4 Neptune: Mother Earth right after the Dwarf Planet
+        const n2={...n,gi:1}; party.forEach(p=>{const hp=p.hp;resetStatus(p);p.hp=hp;});
+        const foes2=makeFoes(w,n2,party.length); battleStart(party,foes2,n2); const fl2=Math.max(...foes2.map(e=>e.lvl));
+        if(!fight(party,foes2)){ const k='w8 boss1'; DEATHS[k]=(DEATHS[k]||0)+1; return w+f/FLOORS; }
+        party.forEach(p=>{ fightRewards(p, fl2, 'boss', p._down).learns.forEach(m=>autoLearn(p,m)); });
+      }
     }
     if(isMoon(w+1)) campHeal(party); else campHeal(party,.5,.5);
   }

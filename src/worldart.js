@@ -56,6 +56,43 @@ function worldArt(w) {
     for (let i = 0; i < 16; i++) { const x = ri(Wd), y = ri(Ht), c = ['#e0457a', '#b388ff', '#ff8c42'][ri(3)];
       rect(x - 2, y, 5, 2, c); px(x - 1, y, '#ffffff'); px(x + 1, y + 1, '#ffffff'); rect(x, y + 2, 1, 2, '#f0e8d0'); }   // mushrooms
     for (let i = 0; i < 60; i++) px(ri(Wd), ri(Ht), ['#fff3a0', '#c8f0ff', '#ffb0e0'][ri(3)]);   // sparkles
+  } else if (w >= 24) {                          // Realm 4: Lights Out (one look per planet)
+    const k = w - 24, stars = n => { for (let i = 0; i < n; i++) px(ri(Wd), ri(Ht), R() < 0.7 ? '#ffffff' : '#a8c8ff'); };
+    if (k === 0) {                               // Ruined Earth: dark sky, broken towers, ash
+      fill('#3a3028'); speckle(['#2e2620', '#463a30', '#5a4a3a'], 800); rect(0, 0, Wd, 22, '#1a1418'); stars(15);
+      for (let i = 0; i < 6; i++) { const x = 4 + i * 13 + ri(4), h = 8 + ri(12); rect(x, 22 - h, 6, h, '#26222a'); for (let y = 22 - h + 2; y < 22; y += 3) if (R() < 0.4) px(x + 1 + ri(4), y, '#f9a03a'); }
+      for (let i = 0; i < 12; i++) { const x = ri(Wd), y = 26 + ri(Ht - 30); rect(x, y, 4 + ri(5), 2, ['#5a4a40', '#6a5a4a', '#3a3a40'][ri(3)]); }
+      for (let i = 0; i < 4; i++) { const x = 6 + ri(Wd - 14), y = 30 + ri(Ht - 40); rect(x, y, 8, 3, '#7a2a1a'); rect(x + 1, y - 2, 5, 2, '#5a2a1a'); px(x + 1, y + 3, '#1a1a1a'); px(x + 6, y + 3, '#1a1a1a'); }
+    } else if (k === 1) {                        // Mercury: cratered, blazing sun on the horizon
+      fill('#8a6a50'); speckle(['#7a5a40', '#9a7a5a', '#6a4a30'], 900); rect(0, 0, Wd, 20, '#1a0e08'); blob(40, 4, 14, '#ffb040'); blob(40, 4, 10, '#fff0a0');
+      for (let i = 0; i < 14; i++) { const x = ri(Wd), y = 24 + ri(Ht - 28), r = 2 + ri(4); blob(x, y, r, '#5a3a24'); blob(x + 1, y + 1, Math.max(1, r - 1), '#7a5a40'); }
+    } else if (k === 2) {                        // Venus: acid-green clouds, yellow haze
+      fill('#a8a040'); speckle(['#98903a', '#b8b050', '#c8c060'], 900);
+      for (let i = 0; i < 18; i++) blob(ri(Wd), ri(Ht), 3 + ri(4), ['rgba(150,220,60,0.5)', 'rgba(220,230,90,0.5)', 'rgba(120,180,40,0.45)'][ri(3)]);
+      for (let i = 0; i < 70; i++) { const x = ri(Wd), y = ri(Ht); px(x, y, '#e0ff70'); px(x, y + 1, 'rgba(224,255,112,0.5)'); }   // acid rain
+    } else if (k === 3) {                        // Mars: red dust, rocks, a little base
+      fill('#b8502a'); speckle(['#a84422', '#c8603a', '#983a1a'], 900); rect(0, 0, Wd, 18, '#d8905a');
+      for (let i = 0; i < 14; i++) { const x = ri(Wd), y = 22 + ri(Ht - 26); rect(x, y, 2 + ri(4), 2 + ri(3), '#7a2a12'); }
+      rect(50, 30, 16, 8, '#c8c8d0'); blob(58, 30, 5, '#e0e0e8'); rect(56, 36, 4, 2, '#3a3a40'); for (let i = 0; i < 3; i++) px(52 + i * 5, 29, '#59e0ff');
+      for (let i = 0; i < 40; i++) px(ri(Wd), ri(Ht), 'rgba(255,200,150,0.4)');   // dust
+    } else if (k === 4) {                        // Jupiter: banded clouds and the Great Red Spot
+      for (let y = 0; y < Ht; y++) rect(0, y, Wd, 1, ['#c8a070', '#e0c090', '#b07850', '#f0dcb0', '#a06840'][Math.floor(y / 6 + Math.sin(y / 3) * 0.6 + 5) % 5]);
+      blob(56, 50, 9, '#b8401a'); blob(56, 50, 6, '#d86030'); blob(55, 49, 3, '#f08050');
+      for (let i = 0; i < 25; i++) { const x = ri(Wd), y = ri(Ht); rect(x, y, 3 + ri(5), 1, 'rgba(255,255,255,0.25)'); }
+    } else if (k === 5) {                        // Saturn: rings across a starry sky, circus lights
+      fill('#14101e'); stars(60); blob(40, 44, 16, '#d8b878'); blob(40, 44, 13, '#e8c890');
+      for (let x = 0; x < Wd; x++) { const y = 44 + Math.round((x - 40) * 0.25); px(x, y, '#f0e0b0'); px(x, y + 1, '#c8a870'); px(x, y - 1, 'rgba(240,224,176,0.6)'); }
+      for (let i = 0; i < 20; i++) px(ri(Wd), 70 + ri(24), ['#ff4a7a', '#ffd23a', '#59e0ff', '#a0ff70'][ri(4)]);
+    } else if (k === 6) {                        // Uranus: pale teal ice world, tilted bands
+      fill('#7ad0d8'); speckle(['#6ac0c8', '#8ae0e8', '#5ab0b8'], 800);
+      for (let i = 0; i < 6; i++) for (let y = 0; y < Ht; y++) px(i * 14 + Math.round(y * 0.4) % Wd, y, 'rgba(255,255,255,0.35)');
+      for (let i = 0; i < 10; i++) { const x = ri(Wd - 4), y = ri(Ht - 4); rect(x, y, 3, 3, '#c8f4ff'); px(x + 1, y + 1, '#ffffff'); }
+    } else {                                     // Neptune: deep blue storms and ice
+      fill('#1a3a90'); speckle(['#14307a', '#2448a8', '#0e2468'], 900);
+      for (let i = 0; i < 8; i++) { const x = ri(Wd), y = ri(Ht); rect(x, y, 10 + ri(14), 1, 'rgba(160,200,255,0.4)'); }
+      blob(24, 30, 7, '#0a1850'); blob(24, 30, 4, '#122a70');   // great dark spot
+      for (let i = 0; i < 12; i++) { const x = ri(Wd - 5), y = 50 + ri(Ht - 54); rect(x, y, 4, 3, '#c8e0ff'); px(x + 1, y, '#ffffff'); }
+    }
   } else if (w >= 16) {                          // Realm 3: World Domination (one look per place)
     const k = w - 16;
     if (k === 0) {                               // Japan: blossoms, a torii gate, Fuji on the horizon
