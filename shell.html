@@ -325,6 +325,10 @@
   .spr.cutart { height:240px; display:block; margin:0 auto; animation:bob 1.2s steps(2) infinite; }
   .maptog { margin-top:5px; } .maptog .tog { font-size:11px; padding:6px; } .tog.on { background:#90be6d; color:#1a1424; }
   .quickhint { padding:14px 6px; color:var(--gold); }
+  /* Ultra forms: pulsing elemental glow on top of the aura baked into the sprite */
+  .spr.ultraglow { animation:bob 1s steps(2) infinite, uglow 1.4s ease-in-out infinite alternate; }
+  @keyframes uglow { from { filter:drop-shadow(0 0 2px var(--uc)); } to { filter:drop-shadow(0 0 7px var(--uc)) brightness(1.12); } }
+  .ultratag { color:#f9c74f; font-weight:700; }
 </style>
 </head>
 <body>
