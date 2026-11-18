@@ -233,7 +233,7 @@ function bossUnit(w, L, o) {
   return u;
 }
 // Boss sidekicks: more HP than a normal foe of their kind (so the boss can play off them), same damage.
-const SIDE_HP = 1.6;
+const SIDE_HP = 1.4;
 const side = (w, L, el, cls, f) => { const u = classEnemy(w, Math.max(1, L - 1), el, cls, f); u.base.hp *= SIDE_HP; derive(u); u.hp = u.max; return u; };
 const BOSSES = [
   // 1. The Protagonist: spiky hair, a sword bigger than he is, and a full party of tropes.
@@ -1456,7 +1456,36 @@ function recruitOffers(team) {
   }
   return out;
 }
-function boostMove(m) {
+// Move upgrades improve ONE thing, rolled from what the move has: damage, status chance, (rarely) a status's + version,
+// its support effect, or cost. A few favorites keep the old all-in-one upgrade.
+const FULL_BOOST = new Set(['Dissonance', 'Firebrand Anthem', 'Fan the Flames', 'Bonfire Song']);
+const BOOST_STATUS = ['burn', 'poison', 'stun', 'para', 'blind', 'confuse'];
+const r2 = x => Math.round(x * 100) / 100;
+function boostOptions(m) {
+  if (FULL_BOOST.has(m.n.replace(/\+$/, ''))) return [{ t:'everything improves', w:1, f:() => boostAll(m) }];
+  const o = [], sts = BOOST_STATUS.filter(k => m[k] && m[k] < 1), plusable = BOOST_STATUS.filter(k => k !== 'stun' && m[k] && !m[k + 'P']);
+  if (m.pow > 0) o.push({ t:`+${m.hits > 1 ? 5 : 10} POW`, w:3, f:() => { m.pow += m.hits > 1 ? 5 : 10; } });
+  if (sts.length) o.push({ t:`+10% ${sts.join('/')} chance`, w:2, f:() => sts.forEach(k => { m[k] = Math.min(1, r2(m[k] + 0.1)); }) });
+  if (plusable.length) { const k = plusable[0]; o.push({ t:`${k} becomes ${k}+`, w:0.6, f:() => { m[k + 'P'] = true; } }); }
+  const sup = [];
+  if (m.healPct) sup.push(['+5% heal', () => { m.healPct = r2(m.healPct + 0.05); }]);
+  if (m.shieldPct) sup.push(['+5% shield', () => { m.shieldPct = r2(m.shieldPct + 0.05); }]);
+  if (m.regen) sup.push(['+2% regen', () => { m.regen[0] = r2(m.regen[0] + 0.02); }]);
+  if (m.revive) sup.push(['+10% revive HP', () => { m.revive = r2(m.revive + 0.1); }]);
+  if (m.offUp) sup.push(['+1 OFF stage', () => { m.offUp += 1; }]);
+  if (m.staGain) sup.push(['+10 STA given', () => { m.staGain += 10; }]);
+  if (m.staDrain) sup.push(['+10 STA drained', () => { m.staDrain += 10; }]);
+  sup.forEach(([t, f]) => o.push({ t, w:2 / sup.length + 0.5, f }));
+  if (m.s >= 20) o.push({ t:'-5 STA cost', w:1, f:() => { m.s -= 5; } });
+  return o.length ? o : [{ t:'everything improves', w:1, f:() => boostAll(m) }];
+}
+function rollBoost(m) { const o = boostOptions(m); let r = Math.random() * o.reduce((s, x) => s + x.w, 0); for (const x of o) { if ((r -= x.w) < 0) return x; } return o[0]; }
+function boostMove(m, opt = rollBoost(m)) {
+  opt.f();
+  if (!m.n.endsWith('+')) m.n += '+';
+  return opt.t;
+}
+function boostAll(m) {
   if (m.pow > 0) m.pow += m.hits > 1 ? 5 : 10;
   if (m.healPct) m.healPct = Math.round((m.healPct + 0.05) * 100) / 100;
   if (m.shieldPct) m.shieldPct = Math.round((m.shieldPct + 0.05) * 100) / 100;
@@ -1466,7 +1495,6 @@ function boostMove(m) {
   ['burn', 'poison', 'stun', 'para', 'blind', 'confuse'].forEach(k => { if (m[k] && m[k] < 1) m[k] = Math.min(1, Math.round((m[k] + 0.1) * 100) / 100); });
   if (m.staGain) m.staGain += 10;
   if (m.staDrain) m.staDrain += 10;
-  if (!m.n.endsWith('+')) m.n += '+';
 }
 // Treasure: permanent base-stat boosts (they grow with level) or a move upgrade.
 function upgradePool(team) {
@@ -1477,7 +1505,7 @@ function upgradePool(team) {
     const o = pick([
       up('hp', 1.12, 'Max HP +12%'), up('off', 1.1, 'Offense +10%'), up('pdef', 1.1, 'DEF +10%'), up('sdef', 1.1, 'SpD +10%'), up('spd', 1.12, 'SPE +12%'),
       { t:'Stamina +20', f:() => { p.base.sta += 20; derive(p); } },
-      { t:`Upgrade ${m.n}`, f:() => boostMove(m) }
+      (bo => ({ t:`Upgrade ${m.n} (${bo.t})`, f:() => boostMove(m, bo) }))(rollBoost(m))
     ]);
     out.push({ ...o, who:p });
   }

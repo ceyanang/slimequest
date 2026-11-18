@@ -39,6 +39,7 @@ Mobile-first pixel-art roguelike. Single-file HTML game, published as a Claude a
 - Bosses resist debuffs: each lowered stat stage is 20% on a boss instead of 25% (`BOSS_DEBUFF_STEP`; floor 40% instead of 25%). Sidekicks take full debuffs. Pass the unit to `stMul(stage, unit)`.
 - Stuns: land at 1.5x a move's listed chance (`STUN_MULT`, descriptions show the boosted %); a unit that loses a turn to a stun is Dazed and can't be stunned again until it gets a turn.
 - + statuses (move flags `burnP`, `poisonP`, `paraP`, `blindP`, `confuseP`, `stunP`): burn+/poison+ 12% a turn (normal 8%), para+ 50% skip (30%), blind+ 55% miss (35%), confuse+ 60% self-hit (40%), stun+ skips 2 turns (very rare: risky moves and bosses). Regen+ = regen of 15%+ a turn. Mostly on boss signature moves plus a few player moves.
-- Boss sidekicks (`side()`) get `SIDE_HP` 1.6x HP (not damage) so bosses can play off them.
+- Boss sidekicks (`side()`) get `SIDE_HP` 1.4x HP (not damage) so bosses can play off them.
+- Move upgrades (`boostMove`) improve ONE rolled aspect (`boostOptions`: +POW, +status chance, rarely status -> status+ (never stun+), support amount, or -5 STA); `FULL_BOOST` moves (Dissonance, Fire Bard's Firebrand Anthem / Fan the Flames / Bonfire Song) keep the all-in-one upgrade. Treasure offers show the rolled upgrade.
 - Stars: 10 points per star per slime, +1 star per realm cleared, max 10 points in one stat; a slime's own points spend first, shared pool last (refunded first).
 - Fusion (Realm 2+, starters after clearing Realm 2): multiclass with both elements and classes, averaged stats, random base parent gives moves, the other parent's moves are offered to learn. Pocket holds one slime essence for fusing.
