@@ -39,7 +39,7 @@ const CLASSES = {
   bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
   ranger: { name:'Ranger',  hp:50, off:10.5, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
   sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
-  rogue:  { name:'Rogue',   hp:52, off:11.9, pdef:9, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
+  rogue:  { name:'Rogue',   hp:52, off:13, pdef:9, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
 };
 /* ---- class passives: a starter picks one of its class's two, recruits roll one at random ---- */
 const PASSIVES = {
