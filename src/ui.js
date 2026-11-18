@@ -531,8 +531,8 @@ function showDojo() {
       ${p.moves.map((m, j) => `<div class="row" style="margin-bottom:6px"><button class="offer" data-mv="${j}" style="border-left:6px solid ${ELEM[m.el].c}"><span>${moveLine(m)}</span></button></div>`).join('')}
       <div class="row"><button id="back">BACK</button></div>`;
     app.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
-      const m = p.moves[+b.dataset.mv]; boostMove(m); SFX.play('level');
-      app.innerHTML = `<h1>MOVE LEVELED UP!</h1>${img(unitURL(p), 'mid bob')}<div class="card fcard"><div class="faces small">${moveLine(m)}</div></div>
+      const m = p.moves[+b.dataset.mv], what = boostMove(m); SFX.play('level');
+      app.innerHTML = `<h1>MOVE LEVELED UP!</h1>${img(unitURL(p), 'mid bob')}<div class="sub" style="text-align:center">${m.n}: ${what}</div><div class="card fcard"><div class="faces small">${moveLine(m)}</div></div>
         <div class="row"><button class="primary" id="go">CONTINUE</button></div>`;
       document.getElementById('go').onclick = showMap;
     });
