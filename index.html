@@ -5476,7 +5476,7 @@ function effMove(a, m) {
      dmg:   damage dealt x mult when { aoe, single, first, status, burn, poison, slowed, blinded, foeLow, lowhp }
      taken: damage taken x mult when { physical, special, aoe, highhp }
      kill:  { heal, sta, offUp }   crit: extra crit chance   endure: survives one knockout per fight at 1 HP */
-const ULTRA_STAT = 1.35;
+const ULTRA_STAT = 1.25;
 const ULTRA_PERKS = {
   // Fire: offense and burns
   fire_fighter:   { n:'Blazing Valor', d:'Starts each fight with +25% OFF. Its hits have a 25% chance to burn.', start:{ offUp:1 }, hit:{ burn:0.25 } },
@@ -7748,7 +7748,7 @@ function showUltra() {
   const ok = party.filter(p => !p.ultra && p.hp > 0);
   if (!ok.length) { app.innerHTML = `<h1>ULTRA CRYSTAL</h1>${img(spriteURL('i_ultra', 8), 'mid')}<div class="sub" style="text-align:center">The crystal glows, but nobody here can take an Ultra form right now.</div><div class="row"><button class="primary" id="go">BACK TO MAP</button></div>`; return document.getElementById('go').onclick = showMap; }
   app.innerHTML = `<h1>ULTRA CRYSTAL</h1>${img(spriteURL('i_ultra', 8), 'mid bob')}
-    <div class="sub" style="text-align:center">A crystal hums with raw power. One slime can take its <b>Ultra form</b> for the rest of this run: +35% stats, upgraded gear, an elemental aura and a unique Ultra perk.</div>
+    <div class="sub" style="text-align:center">A crystal hums with raw power. One slime can take its <b>Ultra form</b> for the rest of this run: +25% stats, upgraded gear, an elemental aura and a unique Ultra perk.</div>
     ${ok.map(p => { const keys = ultraChoices(p); return `<div class="row" style="margin-bottom:6px"><button class="offer" data-u="${party.indexOf(p)}">${img(unitURL(p), 'tiny')}<span><b>${p.name}</b> · Lv${p.lvl} ${etags(p)}<br><small>${keys.map(k => `<span class="ultratag">${ULTRA_PERKS[k].n}</span>: ${ULTRA_PERKS[k].d}`).join('<br>or ')}</small></span></button></div>`; }).join('')}
     <div class="row"><button id="skip">LEAVE IT</button></div>`;
   app.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { const p = party[+b.dataset.u], keys = ultraChoices(p); keys.length > 1 ? pickUltraPerk(p, keys) : doUltra(p, keys[0]); });
@@ -7767,7 +7767,7 @@ function doUltra(p, key) {
   const P = ULTRA_PERKS[key];
   app.innerHTML = `<h1>ULTRA FORM!</h1>
     <div class="row" style="justify-content:center;align-items:center;gap:6px">${img(before, 'big')}<span style="font-size:22px;color:var(--gold)">&#10148;</span>${img(unitURL(p), 'big bob ultraglow', `--uc:${ELEM[p.el].c}`)}</div>
-    <div class="sub" style="text-align:center"><b>${p.name}</b> awakens! All stats +35%.</div>
+    <div class="sub" style="text-align:center"><b>${p.name}</b> awakens! All stats +25%.</div>
     <div class="faces"><span class="ultratag">&#9733; ${P.n}</span><br>${P.d}</div>${partyMini()}
     <div class="row"><button class="primary" id="go">ONWARD</button></div>`;
   document.getElementById('go').onclick = showMap;
