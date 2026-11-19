@@ -5942,10 +5942,11 @@ function act0(a, m, target, allies, foes, L) {
 // Turn order for a round: fastest first, "first" units always lead, "twice" units act twice.
 // Each unit's place in line: current speed plus a tie-break roll fixed for the round.
 const orderKey = u => effSpd(u) + (u._jit || 0) + (u.first ? 1000 : 0);
+// Higher acts sooner. Uranus (Sideways Spin) reverses speed, but 'always first' units still lead.
+const turnKey = u => (planetRule() || {}).reverse ? (u.first ? 1000 : 0) - (effSpd(u) + (u._jit || 0)) : orderKey(u);
 function roundOrder(units, pBias = 0.05) {
   units.forEach(u => u._jit = Math.random() * 0.9 + (u.side === 'P' ? pBias : 0));
-  const rev = (planetRule() || {}).reverse;   // Uranus: slowest first
-  let o = units.slice().sort((a, b) => rev ? orderKey(a) - orderKey(b) : orderKey(b) - orderKey(a));
+  let o = units.slice().sort((a, b) => turnKey(b) - turnKey(a));
   o.filter(u => u.twice).forEach(u => o.splice(Math.min(o.length, Math.ceil(o.length / 2) + 1), 0, u));
   return o;
 }
@@ -5956,7 +5957,7 @@ function reorderRest(q, from) {
   const slots = [], movers = [];
   for (let i = from; i < q.length; i++) if (!fixed[i]) { slots.push(i); movers.push(q[i]); }
   const before = movers.slice();
-  movers.sort((a, b) => orderKey(b) - orderKey(a));
+  movers.sort((a, b) => turnKey(b) - turnKey(a));
   slots.forEach((i, k) => q[i] = movers[k]);
   return before.filter((u, k) => movers.indexOf(u) > k);
 }
