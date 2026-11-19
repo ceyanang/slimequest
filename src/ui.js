@@ -681,6 +681,7 @@ function showLearned(u, m, old, then) {
 
 /* ================= battle ================= */
 function startFight(node) {
+  LV_WORLD = G.w;   // planet rules and level caps follow the world this fight is in
   MUSIC.play(node.type === 'boss' ? 'boss' : 'battle', node.type === 'elite' ? 2 : 0);
   party.forEach(p => { const hp = p.hp; resetStatus(p); p.hp = hp; });
   B = { downed:new Set(), foes:makeFoes(G.w, node, party.length), queue:[], qi:0, cur:null, sel:null, pending:null, busy:false, over:null, log:[], round:0, gains:[] };
