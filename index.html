@@ -3750,7 +3750,7 @@ const mult = L => 1 + 0.05 * (L - 1);
 
 const CLASSES = {
   fighter:{ name:'Fighter', hp:54, off:12.2, pdef:12.5, sdef:10.5, spd:5, sta:80,  crit:0.05, desc:'All-rounder. Solid stats, can hit every foe.' },
-  cleric: { name:'Cleric',  hp:50, off:10.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
+  cleric: { name:'Cleric',  hp:50, off:9.3, pdef:11, sdef:12.5, spd:4, sta:100, crit:0.05, desc:'Support. Heals and buffs, decent damage.' },
   mage:   { name:'Mage',    hp:44, off:12.9, pdef:7.5, sdef:11, spd:7.5, sta:110, crit:0.05, desc:'Glass cannon. Huge OFF and stamina, but fragile.' },
   monk:   { name:'Monk',    hp:49, off:10.5, pdef:9, sdef:9.5, spd:8.5, sta:90, crit:0.1, desc:'Half healer, half striker. Fast combos that mend allies.' },
   bulwark:{ name:'Bulwark', hp:72, off:10.8, pdef:15, sdef:12, spd:2.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
@@ -3824,7 +3824,7 @@ const BASIC_COST = 0, BASIC_CHARGE = 0.2, STA_REGEN = 10, REST_PCT = 0.5, PARTY_
 const INV = (id, n, d, inv) => ({ n, passive:id, d, el:'neutral', pow:0, s:0, t:'self', inv });
 const BASIC = {
   fighter:{ n:'Slam',  el:'neutral', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
-  cleric: { n:'Smite', el:'light',   cat:'s', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // always Light, whatever the slime's element
+  cleric: { n:'Smite', el:'light',   cat:'s', pow:60, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // always Light, whatever the slime's element
   rogue:  { n:'Stab',  el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE, critBonus:0.2 },
   mage:   { n:'Bonk',  el:'neutral', pow:25, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // genuinely bad: mages cast spells
   ranger: { n:'Arrow Shot', el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
@@ -3913,11 +3913,11 @@ const CLASS_MOVES = {
   ],
   cleric: [    // support with real damage
     { n:'Mend',           el:'neutral', pow:0, s:25, t:'ally',   healPct:0.56 },
-    { n:'Holy Bolt',      el:'self', pow:75,   s:25, t:'foe' },
+    { n:'Holy Bolt',      el:'self', pow:85,   s:25, t:'foe' },
     { n:'Bless',          el:'neutral', pow:0, s:25, t:'ally',   offUp:1, shieldPct:0.3 },
-    { n:'Radiant Burst',  el:'self', pow:50,   s:35, t:'foes' },
+    { n:'Radiant Burst',  el:'self', pow:55,   s:35, t:'foes' },
     { n:'Resurrection',   el:'neutral', pow:0, s:70, t:'fallen', revive:0.4 },   // Lv26: every Cleric gets a revive by mid-run
-    { n:'Judgment',       el:'self', pow:85,   s:45, t:'foe',    expose:1 },
+    { n:'Judgment',       el:'self', pow:100,   s:45, t:'foe',    expose:1 },
     { n:'Sanctuary',      el:'neutral', pow:0, s:55, t:'allies', healPct:0.48, shieldPct:0.15, cleanse:true }
   ],
   rogue: [     // fast, massive single-target damage
@@ -3994,10 +3994,10 @@ const COMBO_MOVES = {
     { n:'Searing Edge',  el:'fire', pow:65, s:30, t:'foe',  expose:1 }, { n:'Heat Wave', el:'fire', pow:45, s:45, t:'foes', burn:0.4 },
     { n:'Molten Armor', el:'fire', pow:0, s:35, t:'self', armor:1, offUp:1 }],
   fire_cleric:  [{ n:'Phoenix Hymn',  el:'fire',  pow:0,  s:45, t:'allies', offUp:1, healPct:0.16 },
-    { n:'Purging Flame', el:'fire', pow:75, s:40, t:'foe', burn:0.5, dispel:true },
-    { n:'Holy Inferno', el:'fire', pow:80, s:65, t:'foes', burn:0.6, teamHeal:0.15 },
-    { n:'Cinder Smite', el:'fire', pow:65, s:25, t:'foe', selfOffUp:1 },
-    { n:'Flame Sermon', el:'fire', pow:40, s:30, t:'foes', teamSta:0.15 },
+    { n:'Purging Flame', el:'fire', pow:85, s:40, t:'foe', burn:0.5, dispel:true },
+    { n:'Holy Inferno', el:'fire', pow:90, s:65, t:'foes', burn:0.6, teamHeal:0.15 },
+    { n:'Cinder Smite', el:'fire', pow:75, s:25, t:'foe', selfOffUp:1 },
+    { n:'Flame Sermon', el:'fire', pow:45, s:30, t:'foes', teamSta:0.15 },
     { n:"Zealot's Fury", el:'fire', pow:0, s:30, t:'self', offUp:2, haste:1 }],
   fire_rogue:   [{ n:'Flame Flurry',  el:'fire',  pow:30, s:45, t:'foe',    hits:3, burn:0.3 },
     { n:'Blazing Fan', el:'fire', pow:40, s:45, t:'foes', burn:0.4 },
@@ -4010,8 +4010,8 @@ const COMBO_MOVES = {
     { n:'Riptide Slash', el:'water', pow:60, s:30, t:'foe',  weaken:1 }, { n:'Breakwater', el:'water', pow:0, s:35, t:'self', taunt:2, shieldPct:0.3 },
     { n:'Maelstrom', el:'water', pow:60, s:55, t:'foes', foeStaDrain:0.15 }],
   water_cleric: [{ n:'Healing Rain',  el:'water', pow:0,  s:45, t:'allies', healPct:0.19, regen:[0.1,3] },
-    { n:'Drench', el:'water', pow:35, s:25, t:'foes', weaken:1 },
-    { n:'Great Flood', el:'water', pow:60, s:60, t:'foes', teamHeal:0.22, cleanseTeam:true },
+    { n:'Drench', el:'water', pow:40, s:25, t:'foes', weaken:1 },
+    { n:'Great Flood', el:'water', pow:70, s:60, t:'foes', teamHeal:0.22, cleanseTeam:true },
     { n:'Purify', el:'water', pow:0, s:25, t:'ally', healPct:0.25, cleanse:true },
     { n:'Tidal Ward', el:'water', pow:0, s:30, t:'allies', shieldPct:0.12 },
     { n:'Spring Water', el:'water', pow:0, s:40, t:'allies', staGain:25, cleanse:true }],
@@ -4030,7 +4030,7 @@ const COMBO_MOVES = {
     { n:'World Tree', el:'life', pow:0, s:70, t:'allies', healPct:0.6, armor:1 },
     { n:'Herbal Remedy', el:'life', pow:0, s:20, t:'ally', cleanse:true, staGain:20 },
     { n:'Seed of Life', el:'life', pow:0, s:30, t:'ally', regen:[0.1,3] },
-    { n:'Lifebloom Strike', el:'life', pow:55, s:30, t:'foe', teamLeech:0.4 }],
+    { n:'Lifebloom Strike', el:'life', pow:65, s:30, t:'foe', teamLeech:0.4 }],
   life_rogue:   [{ n:'Toxic Spores', el:'life', pow:30, s:45, t:'foes', poison:0.7 },
     { n:'Nettle Flurry', el:'life', pow:30, s:40, t:'foe', hits:3, exposeCh:0.25 },
     { n:'Deathbloom', el:'life', pow:70, s:60, t:'foes', leech:0.3, slow:1 },
@@ -4042,9 +4042,9 @@ const COMBO_MOVES = {
     { n:'Spark Jab', el:'lightning', pow:45, s:15, t:'foe', para:0.3 }, { n:'Battle Surge', el:'lightning', pow:0, s:35, t:'allies', haste:1 },
     { n:'Lightning Dash', el:'lightning', pow:80, s:40, t:'foe', pierce:true, selfHaste:1 }],
   lightning_cleric: [{ n:'Energize',     el:'lightning', pow:0,  s:45, t:'allies', haste:2, healPct:0.16 },
-    { n:'Thunder Sermon', el:'lightning', pow:45, s:40, t:'foes', blind:0.3, para:0.2 },
-    { n:'Divine Bolt', el:'lightning', pow:90, s:55, t:'foe', para:1 },
-    { n:'Jolt', el:'lightning', pow:40, s:20, t:'foe', stun:0.25 },
+    { n:'Thunder Sermon', el:'lightning', pow:50, s:40, t:'foes', blind:0.3, para:0.2 },
+    { n:'Divine Bolt', el:'lightning', pow:105, s:55, t:'foe', para:1 },
+    { n:'Jolt', el:'lightning', pow:45, s:20, t:'foe', stun:0.25 },
     { n:'Recharge Hymn', el:'lightning', pow:0, s:25, t:'allies', staGain:25 },
     { n:'Overload', el:'lightning', pow:0, s:35, t:'ally', haste:2, staGain:30 }],
   lightning_rogue:  [{ n:'Volt Strike', el:'lightning', pow:75, s:40, t:'foe', para:0.5, selfHaste:1 },
@@ -4058,7 +4058,7 @@ const COMBO_MOVES = {
     { n:'Stone Fist', el:'earth', pow:55, s:25, t:'foe', expose:1 }, { n:'Stand Firm', el:'earth', pow:0, s:30, t:'self', taunt:2, armor:1 },
     { n:'Landslide', el:'earth', pow:50, s:45, t:'foes', slow:1 }],
   earth_cleric:     [{ n:'Fortify',      el:'earth',     pow:0,  s:45, t:'allies', armor:1, shieldPct:0.18 },
-    { n:'Quake Smite', el:'earth', pow:50, s:40, t:'foes', slow:1 },
+    { n:'Quake Smite', el:'earth', pow:55, s:40, t:'foes', slow:1 },
     { n:'Bastion', el:'earth', pow:0, s:60, t:'allies', regen:[0.1,3], veil:1 },
     { n:'Stone Ward', el:'earth', pow:0, s:25, t:'self', taunt:2, veil:1 },
     { n:'Rampart', el:'earth', pow:0, s:25, t:'ally', armor:2 },
@@ -4162,11 +4162,11 @@ const COMBO_MOVES = {
     { n:'Gloom Cut', el:'dark', pow:60, s:30, t:'foe',  leech:0.25 }, { n:'Terrorize', el:'dark', pow:0, s:35, t:'foes', weaken:1 },
     { n:'Nightfall', el:'dark', pow:0, s:35, t:'self', veil:1, armor:1 }],
   dark_cleric:      [{ n:'Shadow Pact',     el:'dark',    pow:0,  s:45, t:'allies', veil:1, offUp:1 },
-    { n:'Soul Drain', el:'dark', pow:70, s:40, t:'foe', teamLeech:0.3 },
-    { n:'Final Rites', el:'dark', pow:130, s:65, t:'foe', execute:true, leech:0.3 },
-    { n:'Hex Bolt', el:'dark', pow:55, s:25, t:'foe', weaken:1 },
+    { n:'Soul Drain', el:'dark', pow:80, s:40, t:'foe', teamLeech:0.3 },
+    { n:'Final Rites', el:'dark', pow:150, s:65, t:'foe', execute:true, leech:0.3 },
+    { n:'Hex Bolt', el:'dark', pow:65, s:25, t:'foe', weaken:1 },
     { n:'Curse', el:'dark', pow:0, s:25, t:'foe', blind:1, slow:1 },
-    { n:'Blasphemy', el:'dark', pow:55, s:45, t:'foes', blind:0.4, expose:1 }],
+    { n:'Blasphemy', el:'dark', pow:65, s:45, t:'foes', blind:0.4, expose:1 }],
   dark_rogue:       [{ n:'Shadow Strike', el:'dark', pow:70, s:40, t:'foe', steal:true },
     { n:'Bleed Out', el:'dark', pow:60, s:35, t:'foe', poison:1 },
     { n:"Assassin's End", el:'dark', pow:120, s:60, t:'foe', leech:0.4, critBonus:0.2 },
@@ -4193,8 +4193,8 @@ const COMBO_MOVES = {
     { n:'Mass Hysteria', el:'psychic', pow:0, s:40, t:'foes', confuse:0.6 },
     { n:'Psychic Collapse', el:'psychic', pow:0, s:60, t:'foes', expose:2, slow:1 },
     { n:'Mind Fog', el:'psychic', pow:0, s:30, t:'foes', weaken:1 },
-    { n:'Psi Wave', el:'psychic', pow:40, s:35, t:'foes', critBonus:0.2 },
-    { n:'Mind Shatter', el:'psychic', pow:55, s:50, t:'foes', staDrain:20 }],
+    { n:'Psi Wave', el:'psychic', pow:45, s:35, t:'foes', critBonus:0.2 },
+    { n:'Mind Shatter', el:'psychic', pow:65, s:50, t:'foes', staDrain:20 }],
   psychic_rogue:    [{ n:'Psycho Cut', el:'psychic', pow:65, s:45, t:'foe', staDrain:25, critBonus:0.15 },
     { n:'Psi Blades', el:'psychic', pow:35, s:30, t:'foe', hits:2, exposeCh:0.3 },
     { n:'Mind Rend', el:'psychic', pow:120, s:60, t:'foe', weaken:1, dispel:true },
@@ -5518,8 +5518,20 @@ function effMove(a, m) {
   if (a.pas === 'power' && m.pow > 0 && (m.t === 'foe' || m.t === 'foes')) { r = { ...m }; POWER_STRIP.forEach(k => delete r[k]); r.pow = Math.round(m.pow * 1.5); }
   if (a.pas === 'hands' && (m.hits || 1) > 1 && !m.d4) { if (r === m) r = { ...m }; r.hits = m.hits + 1; }
   if (m.blast) r = blastOf(a, r === m ? { ...m } : r);
+  // Heals on others (ally / team heals, and team heals riding on attacks) scale with the healer's OFF. Self-heals, regen and revives don't.
+  if ((m.healPct && m.t !== 'self') || m.teamHeal) { const k = healMul(a); if (Math.abs(k - 1) > 0.005) { if (r === m) r = { ...m };
+    if (m.healPct && m.t !== 'self') r.healPct = Math.round(r.healPct * k * 100) / 100; if (m.teamHeal) r.teamHeal = Math.round(r.teamHeal * k * 100) / 100; } }
   if (r !== m) r._e = 1;
   return r;
+}
+// Heal power: the healer's OFF against the average OFF for its level (1x = the % on the card). Your slimes compare against the
+// average class OFF; enemies compare against their own world's scaling (their class OFF vs the average, plus OFF stages), so
+// realm difficulty doesn't inflate enemy heals. Bosses only count their OFF stages (their heals are hand-tuned).
+const OFF_AVG = Object.values(CLASSES).reduce((x, c) => x + c.off, 0) / Object.keys(CLASSES).length;
+function healMul(a) {
+  if (!a) return 1;
+  if (a.side === 'E') return (a.cls && CLASSES[a.cls] && !a.boss ? CLASSES[a.cls].off / OFF_AVG : 1) * stMul(a.sOff || 0, a);
+  return offOf(a) / (OFF_AVG * mult(a.lvl || 1));
 }
 // Warlock's Eldritch Blast: 1 beam, 2 from Lv20, 3 from Lv40 (each beam a bit weaker), plus every invocation it knows.
 const BLAST_BEAMS = [[40, 3, 0.6], [20, 2, 0.68], [0, 1, 1]];
