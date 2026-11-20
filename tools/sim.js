@@ -7,7 +7,7 @@ function fight(team,foes){
   while(!battleOver(team,foes)&&r<60){r++;
     const order=roundOrder([...alive(team),...alive(foes)]);
     for(let oi=0;oi<order.length;oi++){ const u=order[oi]; reorderRest(order,oi); if(order[oi]!==u){ oi--; continue; } if(u.hp<=0)continue; const mine=u.side==='P', al=mine?team:foes, fo=mine?foes:team;
-      const pl=planFor(u,al,fo,r); act(u,pl.m,pl.target,al,fo,[]); mark(); if(battleOver(team,foes))break; }
+      const pl=planFor(u,al,fo,r); act(u,pl.m,pl.target,al,fo,[]); queueExtraTurns(order); mark(); if(battleOver(team,foes))break; }
     if(!battleOver(team,foes))[...team,...foes].forEach(u=>endRound(u,[])); mark();
   }
   return battleOver(team,foes)==='win';

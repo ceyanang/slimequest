@@ -17,7 +17,9 @@ const ST_NAME = { sOff:'OFF', sDef:'DEF', sSDef:'SpD', sSpd:'SPE' };
 // Which defense stages a DEF-lowering move hits: 'p' physical, 's' special, 'b' both.
 const expKeys = m => m.exp === 's' ? ['sSDef'] : m.exp === 'b' ? ['sDef', 'sSDef'] : ['sDef'];
 // Apply a stage change with a popup; returns a log fragment.
+let ACTOR = null;   // unit currently acting (for Eagle Eye)
 function stageFx(u, k, n) {
+  if (n < 0 && ACTOR && ACTOR.side !== u.side && hasPas(ACTOR, 'eagleeye')) n -= 1;   // Ranger: debuffs drop one stage further
   if (u.pas === 'swords' && k === 'sOff' && n > 0) k = ['sDef', 'sSDef', 'sSpd'][Math.floor(Math.random() * 3)];   // jack of all trades: it doesn't use OFF
   const d = stage(u, k, n); if (!d) return `${ST_NAME[k]} won't go ${n > 0 ? 'higher' : 'lower'}`;
   const w = ['', '', 'sharply ', 'drastically '][Math.min(3, Math.abs(d))];
@@ -96,7 +98,7 @@ function moveValue(m) {
   if (m.inv) return 130;      // Warlock invocations power its every-turn blast, so they beat most spells
   if (m.passive) return 70;   // the bot keeps passives over most single moves, like players do
   return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.healPow || 0) * 0.58 + (m.shieldPct || 0) * 120 +
-    (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) + (m.hex && !m.pow ? 40 : 0) +
+    (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) + (m.hex && !m.pow ? 40 : 0) + (m.shatter ? 15 : 0) + (m.extraTurn ? 45 : 0) + (m.allyTurn ? 45 : 0) +
     (m.detonate ? 20 : 0) + (m.spread ? 22 : 0) + (m.chain ? m.pow * (m.chain - 1) * 0.5 : 0) + (m.charge ? 45 : 0) + (m.counter ? m.counter.pow * 0.8 : 0) + (m.steal ? 15 : 0) + (m.pierce ? 12 : 0) + (m.berserk ? 15 : 0) + (m.mark ? 18 : 0) + (m.overheal ? 10 : 0) + (m.bomb ? m.bomb.pow * 1.5 : 0) - (m.hpCost || 0) * 60;
 }
 function autoLearn(p, m) {
@@ -665,7 +667,8 @@ function calcDmg(a, d, m, eff, crit) {
   if (a.pas === 'volley' && m.t === 'foes') v *= 1.25;
   if (d.pas === 'embody' && m.el === d.el) v *= 0.75;
   if (hasPas(a, 'nightfall') && d.hp < d.max / 2) v *= 1.25;
-  if (d.hex > 0) v *= 1.25;   // Warlock's Hex: takes 25% more damage from everything
+  if (d.hex > 0) v *= 1.25;
+  if (m.el === 'psychic' && m.pow > 0 && (d.confuse || d.sta < d.staMax * 0.25)) v *= 1.25;   // Psychic Mind Break   // Warlock's Hex: takes 25% more damage from everything
   if (hasPas(d, 'hold') && d.taunt > 0) v *= 0.75;
   if (hasPas(d, 'ironbody') && d.hp > d.max / 2) v *= 0.75;
   if (hasPas(d, 'laststand') && d.hp < d.max / 2) v *= 0.75;
@@ -987,6 +990,7 @@ function battleStart(team, foes, node) {
   [team, foes].forEach(side => alive(side).forEach(u => {
     u._fs = false; u._hm = false; u._oc = false;
     if (hasPas(u, 'overcharge')) { stage(u, 'sSpd', 1); u._oc = true; }
+    if (hasPas(u, 'foresight')) { stage(u, 'sSpd', 1); u.sta = Math.min(u.staMax + 20, u.sta + 20); }
     if (hasPas(u, 'radiance')) alive(side).forEach(o => { o.shield += Math.round(o.max * 0.1); });
   }));
 }
@@ -1005,6 +1009,7 @@ function decree(a, m, allies, foes, L) {
   fx({ u:a, k:'name', t:d.n, el:'light', snd:'buff' }); fx({ u:a, k:'buff', t:'EXECUTIVE ORDER' });
 }
 function act(a, m, target, allies, foes, L) {
+  ACTOR = a;
   const canEnc = !a.stun && m && m.s <= a.sta;
   const r0 = act0(a, m, target, allies, foes, L);
   // Encore (Bard): songs (support or debuff moves) can play a second time for free.
@@ -1104,6 +1109,7 @@ function act0(a, m, target, allies, foes, L) {
       if (d.hp <= 0) continue;
       if (d.abducted) { parts.push(`${nm(d)} is up in the saucer, out of reach`); fx({ u:d, k:'num', t:'OUT OF REACH', c:'#d17fe8' }); continue; }
       const eff = effVs(m.el, d), multi = (m.hits || 1) > 1, hp0 = Math.max(0, d.hp); let dealt = 0, crits = 0, misses = 0, fl = [], thorn = 0, firstFx = true, drained = 0;
+      if (m.shatter && d.shield > 0) { fl.push(`shield shattered (${d.shield})`); d.shield = 0; }
       if (m.detonate) {          // cash in remaining burn/poison as instant damage
         const left = (d.burn || 0) + (d.poison || 0);
         if (left) { const v = Math.round(d.max * 0.08 * left * 1.5); d.burn = 0; d.poison = 0; d.hp -= v; dealt += v; fl.push(`detonated ${v}`); }
@@ -1215,9 +1221,15 @@ function act0(a, m, target, allies, foes, L) {
     msg += ' ' + parts.join('; ') + '.';
   }
   const extra = []; applyRiders(a, m, tg, total, allies, foes, extra);
+  // Extra turns (Ranger): act again at the end of this round. Can't chain: a unit gets at most one extra turn a round.
+  if (m.extraTurn && a.hp > 0 && !a._xt && !a._extra) { a._extra = 1; extra.push(`${nm(a)} will act again this round`); fx({ u:a, k:'num', t:'EXTRA TURN', c:'#f9c74f', burst:'buff' }); }
+  if (m.allyTurn) { const o = alive(allies).filter(x => x !== a && !x._xt && !x._extra && !x.stun).sort((x, y) => offOf(y) - offOf(x))[0];
+    if (o) { o._extra = 1; extra.push(`${nm(o)} gets an extra turn`); fx({ u:o, k:'num', t:'EXTRA TURN', c:'#f9c74f', burst:'buff' }); } }
   if (extra.length) msg += ' ' + extra.join('; ') + '.';
   L.push(msg);
 }
+// Units granted an extra turn go to the back of this round's queue.
+function queueExtraTurns(q) { [...new Set(q)].forEach(u => { if (u._extra && u.hp > 0) { u._extra = 0; u._xt = 1; q.push(u); } }); }
 
 // Turn order for a round: fastest first, "first" units always lead, "twice" units act twice.
 // Each unit's place in line: current speed plus a tie-break roll fixed for the round.
@@ -1309,6 +1321,7 @@ function endRound(x, L) {
   if (x.veil > 0) x.veil--;
   if (x.confuse > 0) x.confuse--;
   if (x.hex > 0) x.hex--;
+  x._xt = 0; x._extra = 0;
   if (x.taunt > 0) x.taunt--;
   if (x.guardT > 0 && --x.guardT <= 0) x.guardBy = null;
   if (x.hp > 0 && has(x, 'moss')) { const h = heal(x, x.max * 0.06); if (h) { L.push(`${n}'s moss heals ${h} HP.`); fx({ u:x, k:'heal', v:h }); } }
@@ -1378,6 +1391,7 @@ function scoreMove(a, m, t, allies, foes, round) {
       if (m.pow > 0) s += (1 - d.hp / d.max) * 15;          // focus wounded targets
       s += (m.burn && !d.burn ? m.burn * 14 : 0) + (m.poison && !d.poison ? m.poison * 18 : 0) + ((m.stun && !d.stun && !d.dazed ? m.stun * 25 : 0) + (m.para && !d.para ? m.para * 24 : 0) + (m.blind && !d.blind ? m.blind * 22 : 0) + (m.confuse && !d.confuse ? m.confuse * 24 : 0)) * (smart && AIW.ctl && d.hp > d.max * 0.25 ? ctl * 1.3 : 1) + (m.staDrain ? Math.min(d.sta, m.staDrain) * 0.5 : 0) + 0;
       if (m.mark && !d.marked) s += 12 * allyPower;
+      if (m.shatter && d.shield > 0) s += Math.min(d.shield, d.max) / d.max * 90;
       if (m.hex && !d.hex && m.pow <= 0) s += (d.boss ? 30 : 16) * allyPower * m.hex / 3;
       if (m.bomb && !d.bomb) s += alive(foes).reduce((x, o) => x + Math.min(calcDmg(a, o, { pow:m.bomb.pow }, effVs(m.el, o), false), o.hp) / o.max * 70, 0);
       if (m.steal) s += buffCount(d) * 16;

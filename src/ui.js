@@ -792,7 +792,7 @@ async function advance() {
     const mine = u.side === 'P', al = mine ? party : B.foes, fo = mine ? B.foes : party;
     const pl = planFor(u, al, fo, B.round, mine ? 0.05 : 0.12);
     const L0 = B.log.length;
-    act(u, pl.m, pl.target, al, fo, B.log);
+    act(u, pl.m, pl.target, al, fo, B.log); queueExtraTurns(B.queue);
     setDlg(B.log.slice(L0));
     const ex = fxExtra();
     B.qi++; bumpOrder(); B.cur = u; renderBattle(); B.cur = null;
@@ -831,7 +831,7 @@ function pickMove(i) {
 async function doTurn(u, m, target) {
   const b0 = B; B.pending = null; B.sel = null; B.busy = true;
   const L0 = B.log.length;
-  act(u, m, target, party, B.foes, B.log);
+  act(u, m, target, party, B.foes, B.log); queueExtraTurns(B.queue);
   setDlg(B.log.slice(L0));
   const ex = fxExtra();
   B.qi++; bumpOrder(); B.cur = u; renderBattle(); B.cur = null;
@@ -940,7 +940,7 @@ function unitCard(u, i) {
     ${big ? '<div class="binfo">' : ''}<div class="nm">${u.name}</div>
     <div class="lv">Lv${u.lvl} ${etags(u)}</div>${passiveOf(u) ? `<div class="pasn">&#9733; ${passiveOf(u).n}</div>` : ''}
     <div class="bar ${side === 'E' ? 'red' : ''}"><i style="width:${Math.max(0, u.hp)/u.max*100}%"></i></div>
-    <div class="bar sta"><i style="width:${Math.max(0, u.sta)/u.staMax*100}%"></i></div>
+    <div class="bar sta"><i style="width:${Math.min(100, Math.max(0, u.sta)/u.staMax*100)}%"></i></div>
     <div class="hpt">${Math.max(0, u.hp)}/${u.max}<span class="stv"> · ${u.sta}st</span></div>
     <div class="sts">${statusTags(u)}</div>${big ? '</div>' : ''}
   </div>`;
