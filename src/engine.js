@@ -95,7 +95,7 @@ function gainLevels(p, n) {
 function moveValue(m) {
   if (m.inv) return 130;      // Warlock invocations power its every-turn blast, so they beat most spells
   if (m.passive) return 70;   // the bot keeps passives over most single moves, like players do
-  return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.shieldPct || 0) * 120 +
+  return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.healPow || 0) * 0.58 + (m.shieldPct || 0) * 120 +
     (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) + (m.hex && !m.pow ? 40 : 0) +
     (m.detonate ? 20 : 0) + (m.spread ? 22 : 0) + (m.chain ? m.pow * (m.chain - 1) * 0.5 : 0) + (m.charge ? 45 : 0) + (m.counter ? m.counter.pow * 0.8 : 0) + (m.steal ? 15 : 0) + (m.pierce ? 12 : 0) + (m.berserk ? 15 : 0) + (m.mark ? 18 : 0) + (m.overheal ? 10 : 0) + (m.bomb ? m.bomb.pow * 1.5 : 0) - (m.hpCost || 0) * 60;
 }
@@ -773,21 +773,14 @@ function effMove(a, m) {
   if (a.pas === 'power' && m.pow > 0 && (m.t === 'foe' || m.t === 'foes')) { r = { ...m }; POWER_STRIP.forEach(k => delete r[k]); r.pow = Math.round(m.pow * 1.5); }
   if (a.pas === 'hands' && (m.hits || 1) > 1 && !m.d4) { if (r === m) r = { ...m }; r.hits = m.hits + 1; }
   if (m.blast) r = blastOf(a, r === m ? { ...m } : r);
-  // Heals on others (ally / team heals, and team heals riding on attacks) scale with the healer's OFF. Self-heals, regen and revives don't.
-  if ((m.healPct && m.t !== 'self') || m.teamHeal) { const k = healMul(a); if (Math.abs(k - 1) > 0.005) { if (r === m) r = { ...m };
-    if (m.healPct && m.t !== 'self') r.healPct = Math.round(r.healPct * k * 100) / 100; if (m.teamHeal) r.teamHeal = Math.round(r.teamHeal * k * 100) / 100; } }
+  if (m.healPow && a.off) { if (r === m) r = { ...m }; r.healHP = Math.round(healAmt(a, m)); }   // shown on the move card
   if (r !== m) r._e = 1;
   return r;
 }
-// Heal power: the healer's OFF against the average OFF for its level (1x = the % on the card). Your slimes compare against the
-// average class OFF; enemies compare against their own world's scaling (their class OFF vs the average, plus OFF stages), so
-// realm difficulty doesn't inflate enemy heals. Bosses only count their OFF stages (their heals are hand-tuned).
-const OFF_AVG = Object.values(CLASSES).reduce((x, c) => x + c.off, 0) / Object.keys(CLASSES).length;
-function healMul(a) {
-  if (!a) return 1;
-  if (a.side === 'E') return (a.cls && CLASSES[a.cls] && !a.boss ? CLASSES[a.cls].off / OFF_AVG : 1) * stMul(a.sOff || 0, a);
-  return offOf(a) / (OFF_AVG * mult(a.lvl || 1));
-}
+// Team heals (healPow) work like attacks without defense: POW x the healer's OFF / 55, which is exactly what an attack of
+// that POW deals to an average-defense target. Self-heals keep healPct (% of max HP).
+const HEAL_DIV = 55;
+const healAmt = (a, m) => m.healPow ? m.healPow * offOf(a) / HEAL_DIV * (a.pas === 'healer' ? 1.25 : 1) : 0;
 // Warlock's Eldritch Blast: 1 beam, 2 from Lv20, 3 from Lv40 (each beam a bit weaker), plus every invocation it knows.
 const BLAST_BEAMS = [[40, 3, 0.6], [20, 2, 0.68], [0, 1, 1]];
 function blastOf(a, r) {
@@ -1200,7 +1193,7 @@ function act0(a, m, target, allies, foes, L) {
     for (const t of tg) {
       const fl = [];
       if (m.revive && t.hp <= 0) { resetStatus(t); t.hp = Math.max(1, Math.round(t.max * m.revive)); fl.push(`revived with ${t.hp} HP`); fx({ u:t, k:'heal', v:t.hp }); }
-      if (m.healPct) { const amt = (a.pas === 'healer' ? Math.max(...alive(allies).map(u => u.max)) : t.max) * m.healPct, h = heal(t, amt); fl.push(`+${h} HP`); fx({ u:t, k:'heal', v:h });
+      if (m.healPct || m.healPow) { const amt = m.healPow ? healAmt(a, m) : t.max * m.healPct * (a.pas === 'healer' ? 1.25 : 1), h = heal(t, amt); fl.push(`+${h} HP`); fx({ u:t, k:'heal', v:h });
         if (hasPas(a, 'devotion') && cleanse(t)) fl.push('cured');
         if (hasPas(a, 'ebb') && t !== a && h > 0) a.sta = Math.min(a.staMax, a.sta + Math.round(h * 0.25));
         if (m.overheal && amt - h >= 1) { const sh = Math.round(amt - h); t.shield += sh; fl.push(`+${sh} shield`); } }
@@ -1402,9 +1395,10 @@ function scoreMove(a, m, t, allies, foes, round) {
     for (const u of tg) {
       const miss = 1 - u.hp / u.max;
       let danger = u.hp < u.max * 0.4 ? 1.5 : 1;
-      if (smart && AIW.heal && (m.healPct || m.shieldPct || m.veil || m.armor)) { const inc = incoming(u, foes), eh = u.hp + u.shield; danger = eh <= inc ? 2.4 : eh <= inc * 1.6 ? 1.3 : 0.55; }
+      if (smart && AIW.heal && (m.healPct || m.healPow || m.shieldPct || m.veil || m.armor)) { const inc = incoming(u, foes), eh = u.hp + u.shield; danger = eh <= inc ? 2.4 : eh <= inc * 1.6 ? 1.3 : 0.55; }
       if (m.revive) s += 120;
-      if (m.healPct) s += Math.min(miss, m.healPct) * 140 * danger;
+      const hp_ = m.healPow ? healAmt(a, m) / u.max : m.healPct;
+      if (hp_) s += Math.min(miss, hp_) * 140 * danger;
       if (m.shieldPct && u.shield < u.max * 0.1) s += m.shieldPct * (miss > 0.25 ? 110 : round <= 2 ? 70 : 40) * danger;
       if (m.regen) s += Math.min(miss + 0.1, m.regen[0] * m.regen[1]) * 100 * (u.regen && u.regen.length ? 0.5 : 1);
       if (m.offUp && u.sOff < 4) { const avgOff = alive(allies).reduce((x, y) => x + y.off, 0) / alive(allies).length; s += Math.min(m.offUp, 4 - u.sOff) * (round <= 3 ? 26 : 15) * (u.off / avgOff) * (u.sOff > 1 ? 0.6 : 1); }
@@ -1416,7 +1410,7 @@ function scoreMove(a, m, t, allies, foes, round) {
       if (m.armor && u.sDef < 3) s += (miss > 0.2 ? 30 : round <= 2 ? 18 : 10) * danger * Math.min(m.armor, 3 - u.sDef) * (u.sDef > 0 ? 0.7 : 1);
       if (m.counter && !u.counter) s += m.counter.pow * 0.45 * Math.min(2, alive(foes).length) * 0.6;
       if (m.charge && !u.charged) s += a.sta >= 60 ? 34 : 8;
-      if (m.overheal && m.healPct) s += Math.max(0, m.healPct - miss) * 50;
+      if (m.overheal && hp_) s += Math.max(0, hp_ - miss) * 50;
     }
   }
   s += riderScore(a, m, t, allies, foes, round);
@@ -1719,7 +1713,8 @@ function boostPlan(m) {
     if (plus) return P(`${plus} becomes ${plus}+`, () => { m[plus + 'P'] = true; });
   }
   if (hostile) for (const [k, lab] of [['weaken', 'OFF'], ['expose', 'DEF'], ['slow', 'SPE']]) if (m[k] && m[k] < 3) return P(`lowers ${lab} 1 more stage`, () => { m[k] += 1; });
-  if (m.healPct) return P('heal x1.25', () => { m.healPct = r2(m.healPct * 1.25); });   // support amounts grow by 25% of themselves
+  if (m.healPct) return P('heal x1.25', () => { m.healPct = r2(m.healPct * 1.25); });
+  if (m.healPow) return P('heal POW x1.25', () => { m.healPow = Math.round(m.healPow * 1.25); });   // support amounts grow by 25% of themselves
   if (m.shieldPct) return P('shield x1.25', () => { m.shieldPct = r2(m.shieldPct * 1.25); });
   if (m.regen) return P('regen x1.25', () => { m.regen[0] = Math.round(m.regen[0] * 1.25 * 1000) / 1000; });
   if (m.revive) return P('+10% revive HP', () => { m.revive = r2(m.revive + 0.1); });
@@ -1738,6 +1733,7 @@ function boostMove(m, opt = rollBoost(m)) {
 function boostAll(m) {
   if (m.pow > 0) m.pow += m.hits > 1 ? 5 : 10;
   if (m.healPct) m.healPct = Math.round((m.healPct + 0.05) * 100) / 100;
+  if (m.healPow) m.healPow += 15;
   if (m.shieldPct) m.shieldPct = Math.round((m.shieldPct + 0.05) * 100) / 100;
   if (m.regen) m.regen[0] = Math.round((m.regen[0] + 0.02) * 100) / 100;
   if (m.offUp) m.offUp += 1;
