@@ -971,7 +971,7 @@ function toggleAuto(k = 'auto') {
 // Auto-learn for QUICK mode: take a new move if it beats the move it would replace, counting what the party is missing
 // (nobody heals, nobody hits every foe, nobody protects) so the team stays well rounded.
 const ROLE_TESTS = [
-  [m => m.healPct || m.teamHeal || m.regen || m.mendAlly || m.teamLeech || m.revive, 45],
+  [m => m.healPct || m.healPow || m.teamHeal || m.regen || m.mendAlly || m.teamLeech || m.revive, 45],
   [m => m.pow > 0 && m.t === 'foes', 25],
   [m => m.shieldPct || m.teamShield || m.guard || (m.t === 'allies' && (m.armor || m.offUp)), 20]];
 function smartLearn(p, m) {
