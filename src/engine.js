@@ -773,8 +773,20 @@ function effMove(a, m) {
   if (a.pas === 'power' && m.pow > 0 && (m.t === 'foe' || m.t === 'foes')) { r = { ...m }; POWER_STRIP.forEach(k => delete r[k]); r.pow = Math.round(m.pow * 1.5); }
   if (a.pas === 'hands' && (m.hits || 1) > 1 && !m.d4) { if (r === m) r = { ...m }; r.hits = m.hits + 1; }
   if (m.blast) r = blastOf(a, r === m ? { ...m } : r);
+  // Heals on others (ally / team heals, and team heals riding on attacks) scale with the healer's OFF. Self-heals, regen and revives don't.
+  if ((m.healPct && m.t !== 'self') || m.teamHeal) { const k = healMul(a); if (Math.abs(k - 1) > 0.005) { if (r === m) r = { ...m };
+    if (m.healPct && m.t !== 'self') r.healPct = Math.round(r.healPct * k * 100) / 100; if (m.teamHeal) r.teamHeal = Math.round(r.teamHeal * k * 100) / 100; } }
   if (r !== m) r._e = 1;
   return r;
+}
+// Heal power: the healer's OFF against the average OFF for its level (1x = the % on the card). Your slimes compare against the
+// average class OFF; enemies compare against their own world's scaling (their class OFF vs the average, plus OFF stages), so
+// realm difficulty doesn't inflate enemy heals. Bosses only count their OFF stages (their heals are hand-tuned).
+const OFF_AVG = Object.values(CLASSES).reduce((x, c) => x + c.off, 0) / Object.keys(CLASSES).length;
+function healMul(a) {
+  if (!a) return 1;
+  if (a.side === 'E') return (a.cls && CLASSES[a.cls] && !a.boss ? CLASSES[a.cls].off / OFF_AVG : 1) * stMul(a.sOff || 0, a);
+  return offOf(a) / (OFF_AVG * mult(a.lvl || 1));
 }
 // Warlock's Eldritch Blast: 1 beam, 2 from Lv20, 3 from Lv40 (each beam a bit weaker), plus every invocation it knows.
 const BLAST_BEAMS = [[40, 3, 0.6], [20, 2, 0.68], [0, 1, 1]];
