@@ -33,9 +33,13 @@ function floatText(card, text, color, cls = '') {
   setTimeout(() => el.remove(), 1100);
 }
 // Move a unit's HP bar mid-animation (multi-hit moves drain it hit by hit).
-function setHp(card, hp, max) {
+// rewind=true jumps straight there (no slide, so it never looks like a heal); otherwise the bar only ever goes down,
+// so a re-render mid-combo (bar already at the final HP) isn't pushed back up by the later hits.
+function setHp(card, hp, max, rewind) {
   const bar = card.querySelector('.bar:not(.sta) i'), t = card.querySelector('.hpt');
-  if (bar) bar.style.width = (hp / max * 100) + '%';
+  const shown = t && t.firstChild ? parseInt(t.firstChild.nodeValue) : NaN;
+  if (!rewind && hp > shown) return;
+  if (bar) { if (rewind) { bar.style.transition = 'none'; bar.style.width = (hp / max * 100) + '%'; void bar.offsetWidth; bar.style.transition = ''; } else bar.style.width = (hp / max * 100) + '%'; }
   if (t && t.firstChild) t.firstChild.nodeValue = `${hp}/${max}`;
   card.classList.toggle('dead', hp <= 0);
 }
@@ -76,7 +80,7 @@ function playFX() {
   if (!FX || !FX.length || !app) return;
   const list = FX.splice(0), now = new Set(), later = new Set();
   // Rewind HP bars to before a multi-hit move, so each hit visibly takes its chunk.
-  list.forEach(e => { if (e.from != null) { const c = cardOf(e.u); if (c) setHp(c, e.from, e.max); } });
+  list.forEach(e => { if (e.from != null) { const c = cardOf(e.u); if (c) setHp(c, e.from, e.max, true); } });
   list.forEach(e => { if (e.k === 'anim') try { ANIM.play(e.m, e.u, e.tg); } catch (err) { console.warn(err); } });
   list.forEach(e => {
     const first = e.k === 'name';

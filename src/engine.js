@@ -3,7 +3,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = n => 1 + Math.floor(Math.random() * n);
 const alive = arr => arr.filter(u => u.hp > 0);
 
-function resetStatus(x) { Object.assign(x, { endureUsed:false, _koBy:false, _ua:false, sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, burnP:false, poisonP:false, paraP:false, blindP:false, confuseP:false, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
+function resetStatus(x) { Object.assign(x, { endureUsed:false, _koBy:false, _ua:false, sta:x.staMax, shield:0, burn:0, poison:0, stun:0, dazed:0, burnP:false, poisonP:false, paraP:false, blindP:false, confuseP:false, para:0, sOff:0, sDef:0, sSDef:0, sSpd:0, blind:0, veil:0, confuse:0, taunt:0, guardBy:null, guardT:0, counter:null, charged:false, marked:0, hex:0, bomb:null, regen:[], hit:false, locked:null, plumeUsed:false, standUsed:false, defN:0, defT:0, pm:1, passShield:0, passShieldT:0 }); if (x.item === 'feather') x.sSpd = 1; if (x.startSt) Object.assign(x, x.startSt); }
 // Speed after paralysis (-25%) and speed stages; used for turn order.
 const has = (u, id) => u.item === id;
 const effSpd = u => has(u, 'armor') ? u.spd * 0.001 : (u.pm || 1) * u.spd * (u.para ? 0.75 : 1) * stMul(u.sSpd || 0, u) * (has(u, 'badge') ? 1.5 : 1);
@@ -93,9 +93,10 @@ function gainLevels(p, n) {
 }
 // Value estimate used by the AI when it has to forget a move.
 function moveValue(m) {
+  if (m.inv) return 130;      // Warlock invocations power its every-turn blast, so they beat most spells
   if (m.passive) return 70;   // the bot keeps passives over most single moves, like players do
   return (m.pow || 0) * (m.hits || 1) * (m.t === 'foes' ? 1.6 : 1) + (m.healPct || 0) * 150 + (m.shieldPct || 0) * 120 +
-    (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) +
+    (m.regen ? m.regen[0] * m.regen[1] * 120 : 0) + (m.offUp || 0) * 20 * (m.t === 'allies' ? 2 : 1) + (m.revive ? 60 : 0) + ((m.burn || 0) * 15 + (m.poison || 0) * 15 + (m.stun || 0) * 25 + (m.weaken || 0) * 14 + (m.expose || 0) * 14 + (m.slow || 0) * 10 + ((m.weakenCh || 0) + (m.exposeCh || 0) + (m.slowCh || 0) * 0.7) * (m.hits || 1) * 14 + (m.para || 0) * 20 + (m.blind || 0) * 18 + (m.confuse || 0) * 20 + (m.staDrain || 0) * 0.4) + (m.mendAlly ? m.mendAlly * 30 : 0) + (m.veil ? 16 * (m.t === 'allies' ? 2 : 1) : 0) + (m.staGain ? m.staGain * 0.5 * (m.t === 'allies' ? 2 : 1) : 0) + (m.haste ? 18 * (m.t === 'allies' ? 2 : 1) : 0) + (m.armor ? 16 * (m.t === 'allies' ? 2 : 1) : 0) * (m.t === 'foes' ? 1.8 : 1) + (m.cleanse ? 10 : 0) + (m.splash || 0) * 0.8 + (m.teamHeal || 0) * 200 + (m.teamShield || 0) * 200 + (m.taunt || m.selfTaunt ? 40 : 0) + (m.guard ? 35 : 0) + (m.dispel ? 15 : 0) + (m.cleanseTeam ? 15 : 0) + (m.selfStun ? -20 : 0) + (m.bonusVs ? 15 : 0) + (m.hex && !m.pow ? 40 : 0) +
     (m.detonate ? 20 : 0) + (m.spread ? 22 : 0) + (m.chain ? m.pow * (m.chain - 1) * 0.5 : 0) + (m.charge ? 45 : 0) + (m.counter ? m.counter.pow * 0.8 : 0) + (m.steal ? 15 : 0) + (m.pierce ? 12 : 0) + (m.berserk ? 15 : 0) + (m.mark ? 18 : 0) + (m.overheal ? 10 : 0) + (m.bomb ? m.bomb.pow * 1.5 : 0) - (m.hpCost || 0) * 60;
 }
 function autoLearn(p, m) {
@@ -641,10 +642,10 @@ const fx = e => { if (FX) FX.push(e); };
 function heal(x, amt) { amt *= (planetRule() || {}).healMul || 1; const b = x.hp; x.hp = Math.min(x.max, x.hp + Math.round(amt)); const h = x.hp - b; if (h > 0 && hasPas(x, 'ebb')) x.sta = Math.min(x.staMax, x.sta + Math.round(h * 0.25)); return h; }
 const nm = x => x.name;
 const offOf = a => (a.pas === 'swords' ? a.sdef : a.off) * (a.pas === 'brute' ? 1.25 : 1) * (a.pm || 1) * stMul(a.sOff || 0, a) * (has(a, 'hat') ? 1.5 : 1) * (has(a, 'cloak') ? 0.85 : 1);
-const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
+const hasStatus = d => d.burn || d.poison || d.stun || d.para || d.blind || d.confuse || d.marked || d.hex || d.sOff < 0 || d.sDef < 0 || d.sSDef < 0 || d.sSpd < 0;
 const DEF_EXP = 0.7, DEF_REF = 11;   // see calcDmg: how strongly DEF reduces damage, and the average base DEF
 function calcDmg(a, d, m, eff, crit) {
-  if (a.pas === 'embody' && eff < 1) eff = 1;   // resisted hits land at full strength
+  if ((a.pas === 'embody' || m.noresist) && eff < 1) eff = 1;   // resisted hits land at full strength
   // Physical hits check DEF, special hits check SpD.
   const sp = (m.cat || a.ecat || 'p') === 's', st0 = (sp ? d.sSDef : d.sDef) || 0;
   const ds = m.pierce ? Math.min(0, st0) : st0, e = m.pierce ? Math.max(1, eff) : eff;
@@ -664,6 +665,7 @@ function calcDmg(a, d, m, eff, crit) {
   if (a.pas === 'volley' && m.t === 'foes') v *= 1.25;
   if (d.pas === 'embody' && m.el === d.el) v *= 0.75;
   if (hasPas(a, 'nightfall') && d.hp < d.max / 2) v *= 1.25;
+  if (d.hex > 0) v *= 1.25;   // Warlock's Hex: takes 25% more damage from everything
   if (hasPas(d, 'hold') && d.taunt > 0) v *= 0.75;
   if (hasPas(d, 'ironbody') && d.hp > d.max / 2) v *= 0.75;
   if (hasPas(d, 'laststand') && d.hp < d.max / 2) v *= 0.75;
@@ -770,7 +772,17 @@ function effMove(a, m) {
   let r = m;
   if (a.pas === 'power' && m.pow > 0 && (m.t === 'foe' || m.t === 'foes')) { r = { ...m }; POWER_STRIP.forEach(k => delete r[k]); r.pow = Math.round(m.pow * 1.5); }
   if (a.pas === 'hands' && (m.hits || 1) > 1 && !m.d4) { if (r === m) r = { ...m }; r.hits = m.hits + 1; }
+  if (m.blast) r = blastOf(a, r === m ? { ...m } : r);
   if (r !== m) r._e = 1;
+  return r;
+}
+// Warlock's Eldritch Blast: 1 beam, 2 from Lv20, 3 from Lv40 (each beam a bit weaker), plus every invocation it knows.
+const BLAST_BEAMS = [[40, 3, 0.6], [20, 2, 0.68], [0, 1, 1]];
+function blastOf(a, r) {
+  const [, n, f] = BLAST_BEAMS.find(([lv]) => (a.lvl || 1) >= lv);
+  if (n > 1) { r.hits = (r.hits || 1) * n; r.pow = Math.round(r.pow * f); }
+  (a.moves || []).forEach(x => { if (!x.inv) return; const { powMul, ...add } = x.inv; if (powMul) r.pow = Math.round(r.pow * powMul);
+    for (const k in add) r[k] = typeof add[k] === 'number' && typeof r[k] === 'number' ? r[k] + add[k] : add[k]; });
   return r;
 }
 // Start-of-fight passives. Call once after resetStatus and makeFoes.
@@ -795,7 +807,7 @@ const ULTRA_PERKS = {
   fire_bulwark:   { n:'Magma Plating', d:'Starts each fight with a 20% shield. Attackers have a 30% chance to be burned.', start:{ selfShield:0.2 }, hurt:{ burn:0.3 } },
   fire_bard:      { n:'Encore of Embers', d:'The whole team starts each fight with +25% OFF.', start:{ teamOffUp:1 } },
   fire_ranger:    { n:'Flaming Arrows', d:'Its hits have a 30% chance to inflict burn+. +10% crit chance.', hit:{ burn:0.3, burnP:true }, crit:0.1 },
-  fire_sorcerer:  { n:'Inferno Core', d:'+25% damage with attacks that hit all foes.', dmg:{ aoe:1.25 } },
+  fire_sorcerer:  { n:'Inferno Core', d:'+25% damage with single-target attacks (Eldritch Blast included).', dmg:{ single:1.25 } },
   fire_rogue:     { n:'Ember Assassin', d:'+15% crit chance. Each knockout raises its OFF by 25%.', crit:0.15, kill:{ offUp:1 } },
   // Water: bulky speed, sustain, stamina
   water_fighter:  { n:'Riptide', d:'Its hits have a 30% chance to slow. Heals 4% each round.', hit:{ slow:0.3 }, round:{ heal:0.04 } },
@@ -825,7 +837,7 @@ const ULTRA_PERKS = {
   lightning_bulwark:  { n:'Grounding Rod', d:'Takes 25% less special damage. Attackers have a 30% chance to be paralyzed.', taken:{ special:0.75 }, hurt:{ para:0.3 } },
   lightning_bard:     { n:'Electric Tempo', d:'The whole team starts each fight with +25% SPE.', start:{ teamHaste:1 } },
   lightning_ranger:   { n:'Arc Shot', d:'Its hits have a 30% chance to paralyze. +10% crit chance.', hit:{ para:0.3 }, crit:0.1 },
-  lightning_sorcerer: { n:'Storm Heart', d:'+25% damage with attacks that hit all foes. Its hits have a 15% chance to paralyze.', dmg:{ aoe:1.25 }, hit:{ para:0.15 } },
+  lightning_sorcerer: { n:'Storm Heart', d:'+25% damage with single-target attacks (Eldritch Blast included). Its hits have a 15% chance to paralyze.', dmg:{ single:1.25 }, hit:{ para:0.15 } },
   lightning_rogue:    { n:'Flash Step', d:'Starts each fight with +50% SPE. Its first attack each fight deals +50% damage.', start:{ haste:2 }, dmg:{ first:1.5 } },
   // Earth: toughness and heavy single blows
   earth_fighter:  { n:'Stone Skin', d:'Takes 25% less damage while above half HP.', taken:{ highhp:0.75 } },
@@ -835,7 +847,7 @@ const ULTRA_PERKS = {
   earth_bulwark:  { n:'Unbreakable', d:'Survives one knockout each fight with 1 HP. Takes 25% less damage from attacks that hit all foes.', endure:true, taken:{ aoe:0.75 } },
   earth_bard:     { n:'Drums of the Deep', d:'The whole team starts each fight with +25% DEF and SpD.', start:{ teamDef:1 } },
   earth_ranger:   { n:'Boulder Bolts', d:'Its hits have a 10% chance to stun and a 20% chance to slow.', hit:{ stun:0.1, slow:0.2 } },
-  earth_sorcerer: { n:'Quake Core', d:'+25% damage with attacks that hit all foes. Takes 25% less physical damage.', dmg:{ aoe:1.25 }, taken:{ physical:0.75 } },
+  earth_sorcerer: { n:'Quake Core', d:'+25% damage with single-target attacks (Eldritch Blast included). Takes 25% less physical damage.', dmg:{ single:1.25 }, taken:{ physical:0.75 } },
   earth_rogue:    { n:'Rockfall Ambush', d:'Its first attack each fight deals +50% damage. +10% crit chance.', dmg:{ first:1.5 }, crit:0.1 },
   // Light: protection and healing
   light_fighter:  { n:'Dawnblade', d:'Its hits heal the most hurt ally for 25% of the damage. Heals the most hurt ally 4% each round.', hit:{ mend:0.25 }, round:{ healHurt:0.04 } },
@@ -855,7 +867,7 @@ const ULTRA_PERKS = {
   dark_bulwark:   { n:'Spite Armor', d:'Attackers take 20% of the damage they deal to it back.', hurt:{ reflect:0.2 } },
   dark_bard:      { n:'Dirge', d:'Every foe starts each fight with -25% OFF.', start:{ foeWeaken:1 } },
   dark_ranger:    { n:'Nightstalker', d:'+15% crit chance. +25% damage to foes below half HP.', crit:0.15, dmg:{ foeLow:1.25 } },
-  dark_sorcerer:  { n:'Eclipse Core', d:'+25% damage with attacks that hit all foes. Its hits drain 10% of the damage as HP.', dmg:{ aoe:1.25 }, hit:{ leech:0.1 } },
+  dark_sorcerer:  { n:'Eclipse Core', d:'+25% damage with single-target attacks (Eldritch Blast included). Its hits drain 10% of the damage as HP.', dmg:{ single:1.25 }, hit:{ leech:0.1 } },
   dark_rogue:     { n:'Executioner', d:'+25% damage to foes below half HP. Each knockout raises its OFF by 25%.', dmg:{ foeLow:1.25 }, kill:{ offUp:1 } },
   // Psychic: control and stamina
   psychic_fighter:  { n:'Mind Over Matter', d:'Takes 25% less special damage. Its hits have a 15% chance to confuse.', taken:{ special:0.75 }, hit:{ confuse:0.15 } },
@@ -865,7 +877,7 @@ const ULTRA_PERKS = {
   psychic_bulwark:  { n:'Psychic Barrier', d:'Starts each fight with a 25% shield. Attackers have a 20% chance to be confused.', start:{ selfShield:0.25 }, hurt:{ confuse:0.2 } },
   psychic_bard:     { n:'Mesmerize', d:'Every foe starts each fight with -25% SPE.', start:{ foeSlow:1 } },
   psychic_ranger:   { n:'Precog Shot', d:'+20% crit chance.', crit:0.2 },
-  psychic_sorcerer: { n:'Psionic Storm', d:'+25% damage with attacks that hit all foes. Its hits have a 15% chance to confuse.', dmg:{ aoe:1.25 }, hit:{ confuse:0.15 } },
+  psychic_sorcerer: { n:'Psionic Storm', d:'+25% damage with single-target attacks (Eldritch Blast included). Its hits have a 15% chance to confuse.', dmg:{ single:1.25 }, hit:{ confuse:0.15 } },
   psychic_rogue:    { n:'Mind Thief', d:'Its hits drain 15 STA. Its first attack each fight deals +50% damage.', hit:{ staDrain:15 }, dmg:{ first:1.5 } }
 };
 const ultraPerk = u => u && u.ultra ? ULTRA_PERKS[u.ultra] || null : null;
@@ -1069,6 +1081,7 @@ function act0(a, m, target, allies, foes, L) {
       if (m.expose) expKeys(m).forEach(k => fl.push(stageFx(d, k, -m.expose)));
       if (m.slow) fl.push(stageFx(d, 'sSpd', -m.slow));
       if (m.dispel && dispel(d)) fl.push('buffs removed');
+      if (m.hex && (d.hex || 0) < m.hex) { d.hex = m.hex; fl.push('hexed'); }
       if (m.bomb) { d.bomb = { ...m.bomb, el:m.el, owner:a, t:1, team:foes }; fl.push('bomb planted'); }
       if (m.spread) fl.push(...spreadDebuffs(d, foes));
       if (m.abduct && !d.abducted && foes.filter(u => u.hp > 0 && !u.abducted).length > 1) { d.abducted = m.abduct; d.bomb = null; fl.push('beamed up'); }
@@ -1137,6 +1150,7 @@ function act0(a, m, target, allies, foes, L) {
       if (m.expose && dealt && d.hp > 0) expKeys(m).forEach(k => fl.push(stageFx(d, k, -m.expose)));
       if (m.slow && dealt && d.hp > 0) fl.push(stageFx(d, 'sSpd', -m.slow));
       if (m.mark && d.hp > 0) { d.marked = m.mark; fl.push('marked'); }
+      if (m.hex && d.hp > 0 && dealt && (d.hex || 0) < m.hex) { d.hex = m.hex; fl.push('hexed'); }
       if (hasPas(a, 'overflow') && d.hp < 0 && m.pow > 0) { const o = pick(alive(foes).filter(x => x !== d)); if (o) { let v = -d.hp; const ab = Math.min(o.shield, v); o.shield -= ab; v -= ab; o.hp -= v; o.hit = true; fl.push(`overflow hits ${nm(o)} for ${-d.hp}`); fx({ u:o, k:'dmg', v:-d.hp, el:m.el, small:true, ko:o.hp <= 0 }); } }
       if (m.steal && d.hp > 0 && stealBuffs(a, d)) fl.push('buffs stolen');
       if (m.spread && d.hp > 0) fl.push(...spreadDebuffs(d, foes));
@@ -1289,6 +1303,7 @@ function endRound(x, L) {
   if (x.blind > 0) x.blind--;
   if (x.veil > 0) x.veil--;
   if (x.confuse > 0) x.confuse--;
+  if (x.hex > 0) x.hex--;
   if (x.taunt > 0) x.taunt--;
   if (x.guardT > 0 && --x.guardT <= 0) x.guardBy = null;
   if (x.hp > 0 && has(x, 'moss')) { const h = heal(x, x.max * 0.06); if (h) { L.push(`${n}'s moss heals ${h} HP.`); fx({ u:x, k:'heal', v:h }); } }
@@ -1358,6 +1373,7 @@ function scoreMove(a, m, t, allies, foes, round) {
       if (m.pow > 0) s += (1 - d.hp / d.max) * 15;          // focus wounded targets
       s += (m.burn && !d.burn ? m.burn * 14 : 0) + (m.poison && !d.poison ? m.poison * 18 : 0) + ((m.stun && !d.stun && !d.dazed ? m.stun * 25 : 0) + (m.para && !d.para ? m.para * 24 : 0) + (m.blind && !d.blind ? m.blind * 22 : 0) + (m.confuse && !d.confuse ? m.confuse * 24 : 0)) * (smart && AIW.ctl && d.hp > d.max * 0.25 ? ctl * 1.3 : 1) + (m.staDrain ? Math.min(d.sta, m.staDrain) * 0.5 : 0) + 0;
       if (m.mark && !d.marked) s += 12 * allyPower;
+      if (m.hex && !d.hex && m.pow <= 0) s += (d.boss ? 30 : 16) * allyPower * m.hex / 3;
       if (m.bomb && !d.bomb) s += alive(foes).reduce((x, o) => x + Math.min(calcDmg(a, o, { pow:m.bomb.pow }, effVs(m.el, o), false), o.hp) / o.max * 70, 0);
       if (m.steal) s += buffCount(d) * 16;
       if (m.spread) { const n = alive(foes).length - 1, deb = ['burn','poison','para','blind','confuse'].filter(k => d[k] || m[k]).length + STAGES.filter(k => d[k] < 0).length; s += n * deb * 9; }
@@ -1594,12 +1610,12 @@ const MULTICLASS = {
   'cleric+fighter':'Templar', 'fighter+mage':'Spellblade', 'fighter+monk':'Brawler', 'bulwark+fighter':'Vanguard', 'bard+fighter':'Skald',
   'fighter+ranger':'Skirmisher', 'fighter+sorcerer':'Eldritch Knight', 'fighter+rogue':'Duelist',
   'cleric+mage':'Oracle', 'cleric+monk':'Mystic', 'bulwark+cleric':'Paladin', 'bard+cleric':'Hymnist', 'cleric+ranger':'Druid',
-  'cleric+sorcerer':'Theurge', 'cleric+rogue':'Inquisitor',
-  'mage+monk':'Arcane Fist', 'bulwark+mage':'Spellguard', 'bard+mage':'Enchanter', 'mage+ranger':'Arcane Archer', 'mage+sorcerer':'Archmage', 'mage+rogue':'Trickster',
-  'bulwark+monk':'Sentinel', 'bard+monk':'Dancer', 'monk+ranger':'Pathfinder', 'monk+sorcerer':'Avatar', 'monk+rogue':'Ninja',
+  'cleric+sorcerer':'Heretic', 'cleric+rogue':'Inquisitor',
+  'mage+monk':'Arcane Fist', 'bulwark+mage':'Spellguard', 'bard+mage':'Enchanter', 'mage+ranger':'Arcane Archer', 'mage+sorcerer':'Occultist', 'mage+rogue':'Trickster',
+  'bulwark+monk':'Sentinel', 'bard+monk':'Dancer', 'monk+ranger':'Pathfinder', 'monk+sorcerer':'Cultist', 'monk+rogue':'Ninja',
   'bard+bulwark':'Herald', 'bulwark+ranger':'Warden', 'bulwark+sorcerer':'Runeguard', 'bulwark+rogue':'Bodyguard',
   'bard+ranger':'Troubadour', 'bard+sorcerer':'Siren', 'bard+rogue':'Swashbuckler',
-  'ranger+sorcerer':'Shaman', 'ranger+rogue':'Stalker', 'rogue+sorcerer':'Hexblade'
+  'ranger+sorcerer':'Witch Hunter', 'ranger+rogue':'Stalker', 'rogue+sorcerer':'Hexblade'
 };
 const multiName = (c1, c2) => c1 === c2 ? CLASSES[c1].name : MULTICLASS[[c1, c2].sort().join('+')] || CLASSES[c1].name + '/' + CLASSES[c2].name;
 const ELEMENT_COMBO = {
@@ -1612,14 +1628,17 @@ const ELEMENT_COMBO = {
 };
 const elName = (e1, e2) => !e2 || e1 === e2 ? ELEM[e1].name : ELEMENT_COMBO[[e1, e2].sort().join('+')] || ELEM[e1].name + '/' + ELEM[e2].name;
 const fuseKind = (a, b) => `${elName(a.el, b.el)} ${multiName(a.cls, b.cls)}`;
-function fuseSlimes(a, b) {
-  const [base, other] = Math.random() < 0.5 ? [a, b] : [b, a];
+// order: 0 = a is the base parent (its basic hit, main element/class and moves), 1 = b, omitted = random.
+// A Warlock in the mix always keeps Eldritch Blast as the basic hit.
+function fuseSlimes(a, b, order) {
+  const [base, other] = (order == null ? Math.random() < 0.5 : order === 0) ? [a, b] : [b, a];
   const avg = k => (a.base[k] + b.base[k]) / 2;
   const p = { side:'P', name:`${a.name.split(' ')[0]}-${b.name.split(' ')[0]}`, kind:fuseKind(base, other), el:base.el, el2:other.el, cls:base.cls, cls2:other.cls !== base.cls ? other.cls : undefined,
     lvl:Math.min(LVL_MAX, Math.ceil((a.lvl + b.lvl) / 2)), lvFrac:0,
     base:{ hp:avg('hp'), off:avg('off'), pdef:avg('pdef'), sdef:avg('sdef'), spd:avg('spd'), sta:avg('sta') }, crit:(a.crit + b.crit) / 2,
     basic:clone(base.basic), moves:base.moves.map(clone), learned:[...new Set([...a.learned, ...b.learned])], pas:base.pas || pick(PASSIVES[base.cls]).id,
     look:{ hat:pick([a.cls, b.cls]), hatEl:pick([a.el, b.el]), wp:pick([a.cls, b.cls]), wpEl:pick([a.el, b.el]) }, parents:[[base.el, base.cls], [other.el, other.cls]] };
+  if (other.cls === 'sorcerer' && base.cls !== 'sorcerer') p.basic = clone(other.basic);
   p.pending = other.moves.filter(m => !p.moves.some(x => x.n === m.n)).map(clone);
   mkUnit(p);
   p.hp = Math.max(1, Math.round(p.max * (Math.max(0, a.hp) / a.max + Math.max(0, b.hp) / b.max) / 2));

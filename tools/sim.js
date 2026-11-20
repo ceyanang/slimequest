@@ -14,7 +14,7 @@ function fight(team,foes){
 }
 const NOULTRA=!!process.env.NOULTRA;
 function runOnce(starter, fixed, stats){ let ultraSeen=false;
-  let party=fixed?fixed.map(([e,c],i)=>{const p=newSlime(e,c); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[i]:SB); derive(p); p.hp=p.max; return p;}):[(()=>{const p=newSlime(starter[0],starter[1]); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[0]:SB); derive(p); p.hp=p.max; return p;})()];
+  let party=fixed?fixed.map(([e,c,e2,c2],i)=>{const p=e2?absorbPending(fuseSlimes(newSlime(e,c),newSlime(e2,c2)),4):newSlime(e,c); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[i]:SB); derive(p); p.hp=p.max; return p;}):[(()=>{const p=newSlime(starter[0],starter[1]); ['hp','off','pdef','sdef','spd'].forEach(k=>p.base[k]*=SBS?SBS[0]:SB); derive(p); p.hp=p.max; return p;})()];
   for(let w=0;w<WORLDS.length;w++){ LV_WORLD=w;
     const map=genMap(fixed&&!isMoon(w)?1:w); let pos=null;
     { const real=genMap(w); ultraSeen=ensureUltra(real,w,ultraSeen)||ultraSeen; const has=real.some(r=>r.some(x=>x.type==='ultra'));
@@ -59,7 +59,17 @@ function runOnce(starter, fixed, stats){ let ultraSeen=false;
 }
 const N=+process.argv[2]||100, mode=process.argv[3]||'mixed';
 const avg=a=>(a.reduce((s,x)=>s+x,0)/a.length);
-if(mode==='combo'){   // each element+class combo with two random teammates; SHARD=i/n splits the list across processes
+if(mode==='list'){   // LIST=file.json of [el,cls] or [el,cls,el2,cls2] entries, each with two random teammates
+  const [si,sn]=(process.env.SHARD||'0/1').split('/').map(Number), list=JSON.parse(require('fs').readFileSync(process.env.LIST,'utf8')), cls=Object.keys(CLASSES);
+  list.forEach((ent,i)=>{ if(i%sn!==si) return; const ys=[]; for(let t=0;t<N;t++) ys.push(runOnce(null,[ent,[pick(ALL_ELS),pick(cls)],[pick(ALL_ELS),pick(cls)]]));
+    console.log('slime',ent.join('_'),avg(ys).toFixed(3),(100*ys.filter(y=>y>=8).length/N).toFixed(0)); });
+} else if(mode==='multi'){   // every two-class fusion (random elements) with two random teammates
+  const [si,sn]=(process.env.SHARD||'0/1').split('/').map(Number), cls=Object.keys(CLASSES), pairs=[];
+  cls.forEach((a,i)=>cls.forEach((b,j)=>{ if(j>i) pairs.push([a,b]); }));
+  pairs.forEach(([c1,c2],i)=>{ if(i%sn!==si) return; const ys=[]; for(let t=0;t<N;t++){ const e1=pick(ALL_ELS); let e2=pick(ALL_ELS); while(e2===e1) e2=pick(ALL_ELS);
+      const team=[[e1,c1,e2,c2],[pick(ALL_ELS),pick(cls)],[pick(ALL_ELS),pick(cls)]]; ys.push(runOnce(null,team)); }
+    console.log('multi',c1+'+'+c2,avg(ys).toFixed(3),(100*ys.filter(y=>y>=8).length/N).toFixed(0)); });
+} else if(mode==='combo'){   // each element+class combo with two random teammates; SHARD=i/n splits the list across processes
   const [si,sn]=(process.env.SHARD||'0/1').split('/').map(Number), combos=[];
   ALL_ELS.forEach(e=>Object.keys(CLASSES).forEach(c=>combos.push([e,c])));
   combos.forEach(([e,c],i)=>{ if(i%sn!==si) return; if(process.env.ONLY && !(e+'_'+c).includes(process.env.ONLY)) return; const ys=[]; for(let t=0;t<N;t++){ const team=[[e,c],[pick(ALL_ELS),pick(Object.keys(CLASSES))],[pick(ALL_ELS),pick(Object.keys(CLASSES))]]; ys.push(runOnce(null,team)); }

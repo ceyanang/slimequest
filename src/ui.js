@@ -200,6 +200,15 @@ function showSlimeCard(i) {
 const starterEls = () => META.cleared.includes(1) ? [...STARTERS, ...RARE_ELS] : STARTERS;
 const REALM_LOCKED = r => r > 0 && !META.cleared.includes(r);
 function passiveLine(p) { const ps = passiveOf(p), up = ultraPerk(p); return (ps ? `<div class="pas"><b>${ps.n}</b> ${ps.d}</div>` : '') + (up ? `<div class="pas"><b class="ultratag">&#9733; ${up.n} (Ultra)</b> ${up.d}</div>` : ''); }
+// Fused starter: choose which parent's basic hit (and main element/class) the fusion keeps. A Warlock always blasts.
+function basicPick(el, cls) {
+  const par = [[el, cls], [choice.el2, choice.cls2]], b = ([e, c]) => newSlime(e, c).basic;
+  const wl = par.findIndex(x => x[1] === 'sorcerer');
+  if (wl >= 0) { const m = b(par[choice.fzb || 0]);
+    return `<div class="sub">Basic hit: <b>${m.n}</b> (a Warlock always keeps its blast).</div>`; }
+  return `<div class="sub">Basic hit (which parent's default attack it keeps):</div><div class="row">${par.map((x, i) => { const m = b(x);
+    return `<div class="card choice ${(choice.fzb || 0) === i ? 'on' : ''}" data-fzb="${i}"><div class="name">${m.n}</div><div class="trait">${ELEM[x[0]].name} ${CLASSES[x[1]].name} · ${m.pow} POW${m.el !== 'neutral' ? ' ' + ELEM[m.el].name : ''}</div></div>`; }).join('')}</div>`;
+}
 /* ================= pick screen ================= */
 function renderPick() {
   TITLE_UP = true;
@@ -212,8 +221,9 @@ function renderPick() {
   if (fzOn) {
     if (!starterEls().includes(choice.el2) || choice.el2 === el) choice.el2 = starterEls().find(e => e !== el);
     if (!STARTER_CLASSES.includes(choice.cls2)) choice.cls2 = 'fighter';
-    const sig = JSON.stringify([el, cls, choice.el2, choice.cls2, META.stars, META.shared, choice.fzn || 0]);
-    if (!choice.fz || choice.fz.sig !== sig) choice.fz = { sig, unit:absorbPending(fuseSlimes(p, newSlime(choice.el2, choice.cls2)), 4) };
+    if (cls === 'sorcerer' || choice.cls2 === 'sorcerer') choice.fzb = cls === 'sorcerer' ? 0 : 1;   // a Warlock always keeps its blast
+    const sig = JSON.stringify([el, cls, choice.el2, choice.cls2, META.stars, META.shared, choice.fzb || 0]);
+    if (!choice.fz || choice.fz.sig !== sig) choice.fz = { sig, unit:absorbPending(fuseSlimes(p, newSlime(choice.el2, choice.cls2), choice.fzb || 0), 4) };
     p = choice.fz.unit; keep = p.cls;
   }
   const pasOpts = fzOn ? [...PASSIVES[p.cls], ...(p.cls2 ? PASSIVES[p.cls2] : [])] : PASSIVES[keep];
@@ -239,7 +249,7 @@ function renderPick() {
     ${fzOn ? `<div class="sub">Second slime (the fusion is both elements AND both classes, with averaged stats):</div>
       <div class="row">${starterEls().map(e => `<div class="card choice chip ${e === choice.el2 ? 'on' : ''}" data-el2="${e}">${img(slimeURL(e), 'xs')}${etag(e)}</div>`).join('')}</div>
       <div class="row" style="flex-wrap:wrap">${STARTER_CLASSES.map(c => `<div class="card choice chip ${c === choice.cls2 ? 'on' : ''}" style="flex:1 0 30%;font-size:10px" data-cls2="${c}">${CLASSES[c].name}</div>`).join('')}</div>
-      <div class="row"><button id="fzrr">REROLL BASE MOVES</button></div>` : ''}
+      ${basicPick(el, cls)}` : ''}
     <div class="section">PASSIVE (pick one)</div>
     <div class="row" style="flex-wrap:wrap">${pasOpts.map(x => `<div class="card choice paschoice ${x.id === choice.pas ? 'on' : ''}" data-pas="${x.id}"><div class="name">${x.n}</div><div class="trait">${x.d}</div></div>`).join('')}</div>
     <div class="row" style="margin-top:8px"><button class="primary" id="go">START QUEST</button></div>
@@ -253,7 +263,7 @@ function renderPick() {
   const tg = document.getElementById('fztog'); if (tg) tg.onclick = () => { const y = window.scrollY; choice.fuse = !choice.fuse; renderPick(); window.scrollTo(0, y); };
   const re = (sel, f) => app.querySelectorAll(sel).forEach(c => c.onclick = () => { const y = window.scrollY; f(c); renderPick(); window.scrollTo(0, y); });
   re('#lookdice', () => { rerollLook(choice.fz.unit); SFX.play('buff'); });
-  re('[data-el2]', c => choice.el2 = c.dataset.el2); re('[data-cls2]', c => choice.cls2 = c.dataset.cls2); re('#fzrr', () => choice.fzn = (choice.fzn || 0) + 1);
+  re('[data-el2]', c => choice.el2 = c.dataset.el2); re('[data-cls2]', c => choice.cls2 = c.dataset.cls2); re('[data-fzb]', c => choice.fzb = +c.dataset.fzb);
   app.querySelectorAll('[data-pas]').forEach(c => c.onclick = () => { const y = window.scrollY; choice.pas = c.dataset.pas; renderPick(); window.scrollTo(0, y); });
   const yoff = () => window.scrollY;
   app.querySelectorAll('[data-sk]').forEach(b => b.onclick = () => { const y = yoff(); if (changeStar(comboKey(choice.el, choice.cls), b.dataset.sk, +b.dataset.d)) { renderPick(); window.scrollTo(0, y); } });
@@ -906,6 +916,7 @@ function statusTags(x) {
   if (x.blind) t.push([x.blindP ? 'BLIND+' : 'BLIND', '#5a5078']);
   if (x.veil) t.push(['VEIL', '#8a7fb0']);
   if (x.confuse) t.push([x.confuseP ? 'CONF+' : 'CONF', '#d17fe8']);
+  if (x.hex) t.push(['HEX', '#9b5de5']);
   if (x.taunt) t.push(['TAUNT', '#f94144']);
   if (x.guardT > 0 && x.guardBy && x.guardBy.hp > 0) t.push(['GUARDED', '#4cc9f0']);
   if (x.counter) t.push(['COUNTER', '#4cc9f0']);
@@ -1037,7 +1048,7 @@ function renderBattle() {
       pr.innerHTML = `<div class="hint"><b>${u.name}</b>'s turn</div><div class="grid">${u.moves.map((m, i) => moveButton(u, m, i, ref)).join('')}</div><div class="basicrow">${moveButton(u, u.basic, 'basic', ref)}</div><button class="restbtn">REST</button>`;
       hold.controls = Math.max(hold.controls || 0, pr.offsetHeight);
     });
-    pr.className = 'log'; pr.innerHTML = '<div>Fire Sorcerer uses Eruption on all foes! It is super effective!</div>'.repeat(3);
+    pr.className = 'log'; pr.innerHTML = '<div>Fire Warlock uses Eldritch Storm on all foes! It is super effective!</div>'.repeat(3);
     hold.log = pr.offsetHeight;   // the log fills up to three lines
     pr.remove();
     const c = app.querySelector('.controls'); if (c && hold.controls) c.style.minHeight = hold.controls + 'px';

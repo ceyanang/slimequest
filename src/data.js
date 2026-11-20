@@ -38,7 +38,7 @@ const CLASSES = {
   bulwark:{ name:'Bulwark', hp:72, off:10.8, pdef:15, sdef:12, spd:2.5, sta:90, crit:0.05, desc:'The tank. Hammer and shield: taunts, guards allies, shrugs off hits.' },
   bard:   { name:'Bard',    hp:45, off:10, pdef:8, sdef:14, spd:7, sta:100, crit:0.05, desc:'Songs that buff the team and wreck the foes. Weak hits.' },
   ranger: { name:'Ranger',  hp:50, off:10.5, pdef:10, sdef:9.5,  spd:8,   sta:95,  crit:0.1,  desc:'Tricky all-rounder. Shoots, heals, debuffs. Increased crit rate.' },
-  sorcerer:{ name:'Sorcerer', hp:66, off:11.4, pdef:10, sdef:13.5, spd:4.5, sta:100, crit:0.05, desc:'Pure elemental power. Slow and sturdy, blasts every foe at once.' },
+  sorcerer:{ name:'Warlock', hp:60, off:12.4, pdef:9.5, sdef:12, spd:4.5, sta:50, crit:0.05, desc:'Pact magic. Tiny stamina and costly spells, but its free Eldritch Blast grows with every invocation it learns.' },
   rogue:  { name:'Rogue',   hp:52, off:13, pdef:9, sdef:12, spd:9, sta:80,  crit:0.1,  desc:'Fast, massive single-target damage. Increased crit rate.' }
 };
 /* ---- class passives: a starter picks one of its class's two, recruits roll one at random ---- */
@@ -102,6 +102,8 @@ const BASIC_COST = 0, BASIC_CHARGE = 0.2, STA_REGEN = 10, REST_PCT = 0.5, PARTY_
 /* ================= moves =================
    pow 0-100 (a few ultimates go past). s = stamina cost.
    t = target: foe, foes (all), self, ally, allies (whole team), fallen (a KO'd ally). */
+// Warlock invocations: move-slot passives that add to its Eldritch Blast (see effMove). inv: flags merged into the blast, powMul scales it.
+const INV = (id, n, d, inv) => ({ n, passive:id, d, el:'neutral', pow:0, s:0, t:'self', inv });
 const BASIC = {
   fighter:{ n:'Slam',  el:'neutral', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
   cleric: { n:'Smite', el:'light',   cat:'s', pow:50, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // always Light, whatever the slime's element
@@ -109,7 +111,7 @@ const BASIC = {
   mage:   { n:'Bonk',  el:'neutral', pow:25, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // genuinely bad: mages cast spells
   ranger: { n:'Arrow Shot', el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
   bulwark:{ n:'Hammer Bonk', el:'neutral', pow:45, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
-  sorcerer:{ n:'Elemental Jab', el:'self', cat:'s', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },   // hits with the slime's own element
+  sorcerer:{ n:'Eldritch Blast', el:'self', cat:'s', pow:60, s:BASIC_COST, t:'foe', staCharge:0.3, blast:true },   // own element; more beams at Lv20/40, invocations add to it (effMove)
   bard:   { n:'Lute Smack',  el:'neutral', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE },
   monk:   { n:'Palm Strike', el:'neutral', pow:40, s:BASIC_COST, t:'foe', staCharge:BASIC_CHARGE, mendAlly:0.15 }
 };
@@ -132,7 +134,7 @@ const CLASS_LEARN = {
   ranger: { dropEl:[1], dropCls:[3, 6], combo:[1, 22, 44, 8, 14, 32] },  // no Volley, Rain of Arrows or element support move
   bulwark:{ dropEl:[], dropCls:[3, 5], combo:[1, 22, 44, 8, 14, 32] },  // no Fortress or Last Stand
   bard:   { dropEl:[], dropCls:[3, 5], combo:[1, 22, 44, 8, 14, 32] },   // no Ballad of Rest or Inspire
-  sorcerer:{ dropEl:[1], dropCls:[1, 4], combo:[1, 22, 44, 8, 14, 32] }, // no Surge, Embodiment or element support move
+  sorcerer:{ dropEl:[1], dropCls:[], combo:[1, 22, 44, 8, 14, 32] },   // Warlock keeps its whole class kit (invocations live there)
   monk:   { dropEl:[1], dropCls:[2, 3], combo:[1, 22, 44, 8, 14, 32] }   // no Chi Strike, Pressure Point or element support move
 };
 const comboLv = cls => (CLASS_LEARN[cls] || LEARN_LV).combo;
@@ -227,14 +229,14 @@ const CLASS_MOVES = {
     { n:'Last Stand',         el:'neutral', pow:0, s:40, t:'self', healPct:0.3, armor:1 },
     { n:'Earthbreaker',       el:'self', pow:70,  s:60, t:'foes', stun:0.08, para:0.2 }
   ],
-  sorcerer: [  // pure elemental power: slow, sturdy, blasts the whole field
-    { n:'Elemental Wave', el:'self', pow:45,  s:30, t:'foes' },
-    { n:'Surge',          el:'self', pow:70,  s:30, t:'foe' },
-    { n:'Attune',         el:'neutral', pow:0, s:25, t:'self', offUp:1, shieldPct:0.2 },
-    { n:'Shockwave',      el:'self', pow:55,  s:40, t:'foes', stun:0.15 },
-    { n:'Embodiment',     el:'neutral', pow:0, s:35, t:'self', healPct:0.25, shieldPct:0.15 },
-    { n:'Eruption',       el:'self', pow:80,  s:60, t:'foes' },
-    { n:'Apotheosis',     el:'self', pow:100, s:80, t:'foes', expose:1 }
+  sorcerer: [  // Warlock: tiny STA, costly spells, and invocations (passives) that power up its free Eldritch Blast
+    { n:'Hex',              el:'neutral', pow:0, s:20, t:'foe', hex:3 },
+    { ...INV('agonizing', 'Agonizing Blast', 'Invocation: Eldritch Blast deals 25% more damage.', { powMul:1.25 }) },
+    { n:'Dark Pact',        el:'neutral', pow:0, s:25, t:'self', shieldPct:0.3, offUp:1 },
+    { ...INV('repelling', 'Repelling Blast', 'Invocation: each Eldritch Blast beam has a 35% chance to lower SPE 25%.', { slowCh:0.35 }) },
+    { n:'Eldritch Storm',   el:'self', pow:90, s:45, t:'foes' },
+    { ...INV('spear', 'Eldritch Spear', 'Invocation: Eldritch Blast never misses, and resisted blasts deal normal damage.', { sure:true, noresist:true }) },
+    { n:'Pact Cataclysm',   el:'self', pow:150, s:50, t:'foe' }
   ],
   bard: [      // songs: team buffs and foe debuffs, weak hits
     { n:'Off-Key Shriek',     el:'self', pow:35,  s:35, t:'foes', weaken:1 },
@@ -637,52 +639,52 @@ const COMBO_MOVES = {
     { n:'Mind Note', el:'psychic', pow:45, s:20, t:'foe', staDrain:25 },
     { n:'Focus Melody', el:'psychic', pow:0, s:40, t:'allies', staGain:25, cleanse:true },
     { n:'Psychic Harmony', el:'psychic', pow:0, s:30, t:'ally', veil:1, offUp:1 }],
-  fire_sorcerer: [{ n:'Wildfire', el:'fire', pow:45, s:40, t:'foes', burn:0.5 },
-    { n:'Inferno', el:'fire', pow:70, s:55, t:'foes', burn:0.4 },
-    { n:'Sun Burst', el:'fire', pow:120, s:85, t:'foes', burn:0.6, recoil:0.1 },
+  fire_sorcerer: [{ n:'Wildfire', el:'fire', pow:45, s:35, t:'foes', burn:0.5 },
     { n:'Fireblast', el:'fire', pow:95, s:40, t:'foe', burn:0.5, recoil:0.15 },
+    { n:'Sun Burst', el:'fire', pow:120, s:50, t:'foes', burn:0.6, recoil:0.1 },
+    { ...INV('hellfire', 'Hellfire Blast', 'Invocation: each Eldritch Blast beam has a 25% chance to burn.', { burn:0.25 }) },
     { n:'Inner Furnace', el:'fire', pow:0, s:20, t:'self', offUp:2, hpCost:0.1 },
     { n:'Pyre Mantle', el:'fire', pow:0, s:25, t:'self', offUp:1, shieldPct:0.2 }],
-  water_sorcerer: [{ n:'Rising Tide', el:'water', pow:45, s:40, t:'foes', slow:1 },
-    { n:'Riptide', el:'water', pow:55, s:50, t:'foes', weaken:1, slow:1 },
-    { n:'Maelstrom', el:'water', pow:105, s:75, t:'foes', stun:0.3, slow:1 },
+  water_sorcerer: [{ n:'Rising Tide', el:'water', pow:45, s:35, t:'foes', slow:1 },
     { n:'Tidal Ward', el:'water', pow:0, s:30, t:'self', shieldPct:0.3, regen:[0.1,3] },
-    { n:'Ebb and Flow', el:'water', pow:0, s:20, t:'self', staGain:35, regen:[0.1,3] },
+    { n:'Maelstrom', el:'water', pow:105, s:50, t:'foes', stun:0.3, slow:1 },
+    { ...INV('undertow', 'Undertow Blast', 'Invocation: each Eldritch Blast beam drains 8 STA from the target to the Warlock.', { staDrain:8 }) },
+    { n:'Ebb and Flow', el:'water', pow:0, s:15, t:'self', staGain:35, regen:[0.1,3] },
     { n:'Calm Waters', el:'water', pow:0, s:40, t:'allies', shieldPct:0.15, cleanse:true }],
-  life_sorcerer: [{ n:'Toxic Bloom', el:'life', pow:35, s:40, t:'foes', poison:0.7 },
-    { n:'Sap Drain', el:'life', pow:40, s:45, t:'foes', staDrain:20, poison:0.3 },
-    { n:"World Tree's Wrath", el:'life', pow:90, s:80, t:'foes', poison:0.5, teamHeal:0.18 },
-    { n:'Wilting Spores', el:'life', pow:0, s:35, t:'foes', staDrain:25, poison:0.5 },
+  life_sorcerer: [{ n:'Toxic Bloom', el:'life', pow:35, s:35, t:'foes', poison:0.7 },
     { n:'Verdant Rest', el:'life', pow:0, s:30, t:'self', healPct:0.3, regen:[0.1,3] },
+    { n:"World Tree's Wrath", el:'life', pow:90, s:50, t:'foes', poison:0.5, teamHeal:0.18 },
+    { ...INV('lifedrinker', 'Lifedrinker', 'Invocation: Eldritch Blast heals the Warlock for 25% of the damage it deals.', { leech:0.25 }) },
+    { n:'Wilting Spores', el:'life', pow:0, s:30, t:'foes', staDrain:25, poison:0.5 },
     { n:'Bloom Mend', el:'life', pow:0, s:40, t:'allies', healPct:0.1, regen:[0.1,3] }],
-  lightning_sorcerer: [{ n:'Arc Storm', el:'lightning', pow:45, s:40, t:'foes', para:0.4 },
-    { n:'Thunderhead', el:'lightning', pow:65, s:50, t:'foes', staDrain:15 },
-    { n:'Tempest', el:'lightning', pow:100, s:75, t:'foes', para:0.5, stun:0.15 },
+  lightning_sorcerer: [{ n:'Arc Storm', el:'lightning', pow:45, s:35, t:'foes', para:0.4 },
     { n:'Forked Bolt', el:'lightning', pow:70, s:30, t:'foe', para:0.4 },
+    { n:'Tempest', el:'lightning', pow:100, s:50, t:'foes', para:0.5, stun:0.15 },
+    { ...INV('thunderblast', 'Thunder Blast', 'Invocation: each Eldritch Blast beam has a 20% chance to paralyze.', { para:0.2 }) },
     { n:'Tailwind Charge', el:'lightning', pow:0, s:35, t:'allies', haste:1 },
-    { n:'Overclock', el:'lightning', pow:0, s:55, t:'allies', haste:2 }],
-  earth_sorcerer: [{ n:'Rockslide', el:'earth', pow:50, s:40, t:'foes', stun:0.15 },
-    { n:'Landslide', el:'earth', pow:70, s:55, t:'foes', stun:0.2 },
-    { n:'Tectonic Wrath', el:'earth', pow:105, s:80, t:'foes', stun:0.3 },
+    { n:'Overclock', el:'lightning', pow:0, s:45, t:'allies', haste:2 }],
+  earth_sorcerer: [{ n:'Rockslide', el:'earth', pow:50, s:35, t:'foes', stun:0.15 },
     { n:'Boulder Smash', el:'earth', pow:85, s:35, t:'foe', stun:0.3 },
+    { n:'Tectonic Wrath', el:'earth', pow:105, s:50, t:'foes', stun:0.3 },
+    { ...INV('stoneblast', 'Grasp of Stone', 'Invocation: each Eldritch Blast beam has a 10% chance to stun.', { stun:0.1 }) },
     { n:'Stone Ward', el:'earth', pow:0, s:40, t:'allies', shieldPct:0.15 },
     { n:'Mountain Hide', el:'earth', pow:0, s:45, t:'allies', armor:1, shieldPct:0.1 }],
-  light_sorcerer: [{ n:'Sunburst', el:'light', pow:55, s:40, t:'foes', blind:0.35 },
-    { n:'Solar Flare', el:'light', pow:65, s:45, t:'foes', burn:0.5 },
-    { n:"Dawn's Judgment", el:'light', pow:95, s:80, t:'foes', burn:0.4, blind:0.3, teamHeal:0.12 },
+  light_sorcerer: [{ n:'Sunburst', el:'light', pow:55, s:35, t:'foes', blind:0.35 },
     { n:'Searing Halo', el:'light', pow:45, s:35, t:'foes', burn:0.3, teamHeal:0.1 },
+    { n:"Dawn's Judgment", el:'light', pow:95, s:50, t:'foes', burn:0.4, blind:0.3, teamHeal:0.12 },
+    { ...INV('radiantblast', 'Radiant Blast', 'Invocation: Eldritch Blast heals the most hurt ally for 25% of the damage it deals.', { mendAlly:0.25 }) },
     { n:'Radiant Blessing', el:'light', pow:0, s:35, t:'allies', offUp:1 },
     { n:'Dawn Mend', el:'light', pow:0, s:45, t:'allies', healPct:0.24 }],
-  dark_sorcerer: [{ n:'Shadow Tide', el:'dark', pow:45, s:40, t:'foes', blind:0.4 },
-    { n:'Nightmare Fog', el:'dark', pow:45, s:50, t:'foes', confuse:0.4 },
-    { n:'Eclipse', el:'dark', pow:105, s:80, t:'foes', blind:0.5, confuse:0.3, poison:0.3 },
+  dark_sorcerer: [{ n:'Shadow Tide', el:'dark', pow:45, s:35, t:'foes', blind:0.4 },
     { n:'Black Venom', el:'dark', pow:55, s:30, t:'foe', poison:0.8 },
+    { n:'Eclipse', el:'dark', pow:105, s:50, t:'foes', blind:0.5, confuse:0.3, poison:0.3 },
+    { ...INV('hexblast', 'Cursed Blast', 'Invocation: each Eldritch Blast beam has a 25% chance to poison, and blasts Hex their target for 1 round.', { poison:0.25, hex:1 }) },
     { n:'Creeping Dread', el:'dark', pow:0, s:35, t:'foes', poison:0.6, confuse:0.3 },
     { n:'Blinding Gloom', el:'dark', pow:0, s:30, t:'foes', blind:0.6 }],
-  psychic_sorcerer: [{ n:'Mind Storm', el:'psychic', pow:40, s:40, t:'foes', confuse:0.4 },
-    { n:'Psi Bind', el:'psychic', pow:45, s:50, t:'foes', slow:1, stun:0.2 },
-    { n:'Mindquake', el:'psychic', pow:90, s:80, t:'foes', confuse:0.5, stun:0.3, weaken:1 },
+  psychic_sorcerer: [{ n:'Mind Storm', el:'psychic', pow:40, s:35, t:'foes', confuse:0.4 },
     { n:'Mental Snare', el:'psychic', pow:45, s:35, t:'foe', stun:0.5, confuse:0.3 },
+    { n:'Mindquake', el:'psychic', pow:90, s:50, t:'foes', confuse:0.5, stun:0.3, weaken:1 },
+    { ...INV('mindblast', 'Mind Blast', 'Invocation: each Eldritch Blast beam has a 20% chance to confuse.', { confuse:0.2 }) },
     { n:'Disorient', el:'psychic', pow:35, s:35, t:'foes', confuse:0.5 },
     { n:'Psychic Drain', el:'psychic', pow:35, s:40, t:'foes', staDrain:25, dispel:true }]
 };
@@ -820,6 +822,10 @@ function mdesc(m) {
   if (m.berserk) s.push('stronger at low HP');
   if (m.hpCost) s.push(`costs ${pct(m.hpCost)} HP`);
   if (m.mark) s.push(`next ${m.mark} hits on it crit`);
+  if (m.hex) s.push(`Hex: takes 25% more damage for ${m.hex} round${m.hex > 1 ? 's' : ''}`);
+  if (m.blast) s.push(m.hits > 1 ? `${m.hits} beams` : 'more beams at Lv20 and Lv40');
+  if (m.sure) s.push('never misses');
+  if (m.noresist) s.push('resisted hits deal normal damage');
   if (m.overheal) s.push('overheal becomes shield');
   if (m.bomb) s.push(`bomb: POW ${m.bomb.pow} to all foes at end of round`);
   s.push(TNAME[m.t]);
