@@ -572,7 +572,7 @@ function showDojo() {
   };
   const moves = p => {
     app.innerHTML = `<h1>TRAINING DUMMY</h1><div class="sub">Which of ${p.name}'s moves gets leveled up?</div>
-      ${p.moves.map((m, j) => `<div class="row" style="margin-bottom:6px"><button class="offer" data-mv="${j}" style="border-left:6px solid ${ELEM[m.el].c}"><span>${moveLine(m)}</span></button></div>`).join('')}
+      ${p.moves.map((m, j) => canBoost(m) ? `<div class="row" style="margin-bottom:6px"><button class="offer" data-mv="${j}" style="border-left:6px solid ${ELEM[m.el].c}"><span>${moveLine(m)}</span></button></div>` : '').join('')}
       <div class="row"><button id="back">BACK</button></div>`;
     app.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
       const m = p.moves[+b.dataset.mv], what = boostMove(m); SFX.play('level');
@@ -650,7 +650,7 @@ function useBagItem(i, back) {
   if (k === 'revive') return pickSlime('REVIVE', 'Who gets it? Full HP and +1 level.', p => p.hp < p.max || p.lvl < levelCap(), p => levelUp(p, 1, q => { q.hp = q.max; }), again);
   if (k === 'booster') return pickSlime('MOVE BOOSTER', 'Whose move gets upgraded?', () => true, p => {
     app.innerHTML = `<h1>MOVE BOOSTER</h1><div class="sub">Pick ${p.name}'s move to upgrade.</div>
-      ${p.moves.map((m, j) => `<div class="row" style="margin-bottom:6px"><button class="offer" data-mv="${j}"><span>${moveLine(m)}</span></button></div>`).join('')}
+      ${p.moves.map((m, j) => canBoost(m) ? `<div class="row" style="margin-bottom:6px"><button class="offer" data-mv="${j}"><span>${moveLine(m)}</span></button></div>` : '').join('')}
       <div class="row"><button id="cancel">CANCEL</button></div>`;
     app.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { consume(); boostMove(p.moves[+b.dataset.mv]); SFX.play('level'); again(); });
     document.getElementById('cancel').onclick = again;

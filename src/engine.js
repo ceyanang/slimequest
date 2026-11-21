@@ -1757,10 +1757,12 @@ function boostAll(m) {
   if (m.staDrain) m.staDrain += 10;
 }
 // Treasure: permanent base-stat boosts (they grow with level) or a move upgrade.
+// Passives (and Warlock invocations) have nothing to upgrade: upgrade screens and offers skip them.
+const canBoost = m => !!m && !m.passive && !m.rest;
 function upgradePool(team) {
   const out = [];
   for (let i = 0; i < 3; i++) {
-    const p = pick(team), m = pick(allMoves(p));
+    const p = pick(team), m = pick(allMoves(p).filter(canBoost));
     const up = (k, f, label) => ({ t:label, f:() => { p.base[k] = Math.round(p.base[k] * f * 10) / 10; derive(p); } });
     const o = pick([
       up('hp', 1.12, 'Max HP +12%'), up('off', 1.1, 'Offense +10%'), up('pdef', 1.1, 'DEF +10%'), up('sdef', 1.1, 'SpD +10%'), up('spd', 1.12, 'SPE +12%'),

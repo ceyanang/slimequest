@@ -30,9 +30,9 @@ function runOnce(starter, fixed, stats){ let ultraSeen=false;
       if(n.type==='mystery'){ const r=rollMystery(); if(r==='ambush'){ n={...n,type:'fight',foe:rollFoe(w)}; } else if(r==='trap'){ party.forEach(p=>{ if(p.hp>0) p.hp=Math.max(1,p.hp-Math.round(p.max*0.15)); }); continue; } else n={...n,type:r}; }
       if(n.type==='fuse') continue;
       if(n.type==='ultra') continue;   // handled per world below (a player routes to a crystal they can see)
-      if(n.type==='dojo'){ const pp=pick(party); boostMove(pick(pp.moves)); continue; }
+      if(n.type==='dojo'){ const pp=pick(party); { const bm=pp.moves.filter(canBoost); if(bm.length) boostMove(pick(bm)); }; continue; }
       if(n.type==='item'){ const k=pick(itemOffers());
-        if(k==='booster'){ const p=pick(party); boostMove(pick(p.moves)); }
+        if(k==='booster'){ const p=pick(party); { const bm=p.moves.filter(canBoost); if(bm.length) boostMove(pick(bm)); }; }
         else if(k==='potion'||k==='revive'){ const lo=party.reduce((x,y)=>x.lvl<=y.lvl?x:y); if(k==='revive') lo.hp=lo.max; gainLevels(lo,k==='potion'?2:1).forEach(m=>autoLearn(lo,m)); }
         else { const free=party.find(p=>!p.item); if(free) free.item=k; else if(Math.random()<0.5) pick(party).item=k; }
         continue; }
